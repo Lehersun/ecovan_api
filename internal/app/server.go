@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	appconfig "eco-van-api/internal/config"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -19,11 +21,11 @@ const (
 type Server struct {
 	router *chi.Mux
 	server *http.Server
-	config *Config
+	config *appconfig.Config
 }
 
 // NewServer creates a new Server instance
-func NewServer(config *Config) *Server {
+func NewServer(cfg *appconfig.Config) *Server {
 	router := chi.NewRouter()
 
 	// Add middleware placeholders
@@ -37,17 +39,17 @@ func NewServer(config *Config) *Server {
 	setupRoutes(router)
 
 	server := &http.Server{
-		Addr:         ":" + config.Port,
+		Addr:         cfg.HTTP.Addr,
 		Handler:      router,
-		ReadTimeout:  config.ReadTimeout,
-		WriteTimeout: config.WriteTimeout,
-		IdleTimeout:  config.IdleTimeout,
+		ReadTimeout:  cfg.HTTP.ReadTimeout,
+		WriteTimeout: cfg.HTTP.WriteTimeout,
+		IdleTimeout:  cfg.HTTP.IdleTimeout,
 	}
 
 	return &Server{
 		router: router,
 		server: server,
-		config: config,
+		config: cfg,
 	}
 }
 
@@ -80,7 +82,7 @@ func setupRoutes(router chi.Router) {
 
 // Start starts the HTTP server
 func (s *Server) Start() error {
-	log.Printf("Starting server on port %s", s.config.Port)
+	log.Printf("Starting server on %s", s.config.HTTP.Addr)
 	return s.server.ListenAndServe()
 }
 

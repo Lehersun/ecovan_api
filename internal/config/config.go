@@ -1,103 +1,51 @@
 package config
 
-import (
-	"fmt"
-	"os"
-	"strconv"
-)
+import "time"
 
-const (
-	DefaultServerPort = 8080
-	DefaultDBPort     = 5432
-	DefaultMaxSize    = 10 * 1024 * 1024 // 10MB
-)
+// HTTPConfig holds HTTP server configuration
+type HTTPConfig struct {
+	Addr         string
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	IdleTimeout  time.Duration
+	CORSOrigins  []string
+	MaxBodyBytes int64
+}
 
-// Config holds all configuration for the application
+// DBConfig holds database configuration
+type DBConfig struct {
+	DSN             string
+	MaxConns        int
+	MinConns        int
+	MaxConnLifetime time.Duration
+	MaxConnIdleTime time.Duration
+}
+
+// AuthConfig holds authentication configuration
+type AuthConfig struct {
+	JWTSecret  string
+	AccessTTL  time.Duration
+	RefreshTTL time.Duration
+}
+
+// TelemetryConfig holds telemetry configuration
+type TelemetryConfig struct {
+	LogLevel      string
+	OTLPEndpoint  string
+	EnableMetrics bool
+	EnableTracing bool
+}
+
+// PhotosConfig holds photo storage configuration
+type PhotosConfig struct {
+	Dir string
+}
+
+// Config holds all application configuration
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Storage  StorageConfig
-}
-
-// ServerConfig holds server configuration
-type ServerConfig struct {
-	Host string
-	Port int
-}
-
-// DatabaseConfig holds database configuration
-type DatabaseConfig struct {
-	Host     string
-	Port     int
-	Name     string
-	User     string
-	Password string
-	SSLMode  string
-}
-
-// StorageConfig holds file storage configuration
-type StorageConfig struct {
-	UploadDir string
-	MaxSize   int64
-}
-
-// Load loads configuration from environment variables
-func Load() (*Config, error) {
-	cfg := &Config{
-		Server: ServerConfig{
-			Host: getEnv("SERVER_HOST", "0.0.0.0"),
-			Port: getEnvAsInt("SERVER_PORT", DefaultServerPort),
-		},
-		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnvAsInt("DB_PORT", DefaultDBPort),
-			Name:     getEnv("DB_NAME", "eco_van_db"),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", ""),
-			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
-		},
-		Storage: StorageConfig{
-			UploadDir: getEnv("STORAGE_UPLOAD_DIR", "./uploads"),
-			MaxSize:   getEnvAsInt64("STORAGE_MAX_SIZE", DefaultMaxSize), // 10MB
-		},
-	}
-
-	return cfg, nil
-}
-
-// GetDSN returns the database connection string
-func (c *DatabaseConfig) GetDSN() string {
-	return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=%s",
-		c.Host, c.Port, c.Name, c.User, c.Password, c.SSLMode)
-}
-
-// GetServerAddr returns the server address string
-func (c *ServerConfig) GetServerAddr() string {
-	return fmt.Sprintf("%s:%d", c.Host, c.Port)
-}
-
-// Helper functions
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-func getEnvAsInt(key string, defaultValue int) int {
-	if value := os.Getenv(key); value != "" {
-		if intValue, err := strconv.Atoi(value); err == nil {
-			return intValue
-		}
-	}
-	return defaultValue
-}
-
-func getEnvAsInt64(key string, defaultValue int64) int64 {
-	if value := os.Getenv(key); value != "" {
-		if intValue, err := strconv.ParseInt(value, 10, 64); err == nil {
-			return intValue
-		}
-	}
-	return defaultValue
+	HTTP      HTTPConfig
+	DB        DBConfig
+	Auth      AuthConfig
+	Telemetry TelemetryConfig
+	Photos    PhotosConfig
 }

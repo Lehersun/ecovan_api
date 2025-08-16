@@ -2,19 +2,28 @@ package app
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
+
+	"eco-van-api/internal/config"
 )
 
 func TestServer_Shutdown(t *testing.T) {
-	config := &Config{
-		Port:         "0", // Use port 0 for testing (random available port)
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+	// Set required environment variables for testing
+	os.Setenv("DB_DSN", "postgres://test:test@localhost:5432/test")
+	os.Setenv("JWT_SECRET", "test-secret")
+	defer func() {
+		os.Unsetenv("DB_DSN")
+		os.Unsetenv("JWT_SECRET")
+	}()
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	server := NewServer(config)
+	server := NewServer(cfg)
 
 	// Start server in background
 	go func() {
@@ -29,11 +38,11 @@ func TestServer_Shutdown(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	err := server.Shutdown(ctx)
+	shutdownErr := server.Shutdown(ctx)
 	elapsed := time.Since(start)
 
-	if err != nil {
-		t.Errorf("Expected no error during shutdown, got: %v", err)
+	if shutdownErr != nil {
+		t.Errorf("Expected no error during shutdown, got: %v", shutdownErr)
 	}
 
 	// Assert shutdown completes within 1 second
@@ -43,20 +52,26 @@ func TestServer_Shutdown(t *testing.T) {
 }
 
 func TestNewServer(t *testing.T) {
-	config := &Config{
-		Port:         "8080",
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+	// Set required environment variables for testing
+	os.Setenv("DB_DSN", "postgres://test:test@localhost:5432/test")
+	os.Setenv("JWT_SECRET", "test-secret")
+	defer func() {
+		os.Unsetenv("DB_DSN")
+		os.Unsetenv("JWT_SECRET")
+	}()
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	server := NewServer(config)
+	server := NewServer(cfg)
 
 	if server == nil {
 		t.Fatal("Expected server to be created, got nil")
 	}
 
-	if server.config != config {
+	if server.config != cfg {
 		t.Error("Expected server config to match input config")
 	}
 
@@ -70,22 +85,28 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestConfig_DefaultValues(t *testing.T) {
-	config := &Config{
-		Port:         "8080",
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+	// Set required environment variables for testing
+	os.Setenv("DB_DSN", "postgres://test:test@localhost:5432/test")
+	os.Setenv("JWT_SECRET", "test-secret")
+	defer func() {
+		os.Unsetenv("DB_DSN")
+		os.Unsetenv("JWT_SECRET")
+	}()
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	if config.ReadTimeout != 15*time.Second {
-		t.Errorf("Expected ReadTimeout 15s, got %v", config.ReadTimeout)
+	if cfg.HTTP.ReadTimeout != 15*time.Second {
+		t.Errorf("Expected ReadTimeout 15s, got %v", cfg.HTTP.ReadTimeout)
 	}
 
-	if config.WriteTimeout != 15*time.Second {
-		t.Errorf("Expected WriteTimeout 15s, got %v", config.WriteTimeout)
+	if cfg.HTTP.WriteTimeout != 15*time.Second {
+		t.Errorf("Expected WriteTimeout 15s, got %v", cfg.HTTP.WriteTimeout)
 	}
 
-	if config.IdleTimeout != 60*time.Second {
-		t.Errorf("Expected IdleTimeout 60s, got %v", config.IdleTimeout)
+	if cfg.HTTP.IdleTimeout != 60*time.Second {
+		t.Errorf("Expected IdleTimeout 60s, got %v", cfg.HTTP.IdleTimeout)
 	}
 }

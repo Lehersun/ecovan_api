@@ -8,55 +8,41 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
+	"eco-van-api/internal/config"
 )
 
 const (
-	defaultReadTimeout  = 15 * time.Second
-	defaultWriteTimeout = 15 * time.Second
-	defaultIdleTimeout  = 60 * time.Second
-	shutdownTimeout     = 5 * time.Second
+	shutdownTimeout = 5 * time.Second
 )
 
 // App represents the main application
 type App struct {
 	server *Server
-	config *Config
-}
-
-// Config holds application configuration
-type Config struct {
-	Port         string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
+	config *config.Config
 }
 
 // New creates a new App instance
-func New() *App {
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using system environment variables")
+func New() (*App, error) {
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
 	}
 
-	config := &Config{
-		Port:         getEnv("SERVER_PORT", "8080"),
-		ReadTimeout:  defaultReadTimeout,
-		WriteTimeout: defaultWriteTimeout,
-		IdleTimeout:  defaultIdleTimeout,
-	}
-
-	server := NewServer(config)
+	server := NewServer(cfg)
 
 	return &App{
 		server: server,
-		config: config,
-	}
+		config: cfg,
+	}, nil
 }
 
 // Run starts the application and handles graceful shutdown
 func Run(ctx context.Context) error {
-	app := New()
+	app, err := New()
+	if err != nil {
+		return err
+	}
 
 	// Create context for graceful shutdown
 	ctx, cancel := context.WithCancel(ctx)
@@ -92,12 +78,4 @@ func Run(ctx context.Context) error {
 
 	log.Println("Server shutdown completed")
 	return nil
-}
-
-// getEnv gets environment variable with fallback
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
 }
