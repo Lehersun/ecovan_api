@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"eco-van-api/internal/adapter/telemetry"
 	"eco-van-api/internal/adapter/repo/pg"
+	"eco-van-api/internal/adapter/telemetry"
 	"eco-van-api/internal/config"
 )
 

@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	httpmiddleware "eco-van-api/internal/adapter/http"
+	"eco-van-api/internal/adapter/repo/pg"
 	"eco-van-api/internal/adapter/telemetry"
 	appconfig "eco-van-api/internal/config"
-	"eco-van-api/internal/adapter/repo/pg"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -71,14 +71,14 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB) {
 	// Readiness check endpoint
 	router.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		// Check database connectivity
 		if err := db.Ping(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintf(w, `{"status":"unavailable","error":"database connection failed"}`)
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{"status":"ready"}`)
 	})

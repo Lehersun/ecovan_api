@@ -1,7 +1,7 @@
 # Get GOPATH
 GOPATH := $(shell go env GOPATH)
 
-.PHONY: help tools lint test build run migrate-up migrate-down gen clean
+.PHONY: help tools lint test test-integration test-integration-race build run migrate-up migrate-down gen clean
 
 # Default target
 help: ## Show this help message
@@ -29,6 +29,16 @@ test: ## Run tests
 	go test -v -race -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Test coverage report generated: coverage.html"
+
+# Run integration tests
+test-integration: ## Run integration tests
+	@echo "Running integration tests..."
+	go test -tags=integration -v ./...
+
+# Run integration tests with race detection
+test-integration-race: ## Run integration tests with race detection
+	@echo "Running integration tests with race detection..."
+	go test -tags=integration -race -v ./...
 
 # Build the application
 build: ## Build the application

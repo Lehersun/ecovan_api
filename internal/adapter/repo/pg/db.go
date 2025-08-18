@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"eco-van-api/internal/config"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // DB represents a PostgreSQL database connection pool
