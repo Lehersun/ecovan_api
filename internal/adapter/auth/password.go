@@ -67,9 +67,9 @@ func IsValidPassword(password string) error {
 	if len(password) < 8 {
 		return fmt.Errorf("password must be at least 8 characters long")
 	}
-	
+
 	// Add more password strength requirements as needed
 	// For example: require uppercase, lowercase, numbers, special characters
-	
+
 	return nil
 }

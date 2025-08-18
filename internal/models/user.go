@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,10 +13,10 @@ import (
 type UserRole string
 
 const (
-	UserRoleAdmin     UserRole = "ADMIN"
+	UserRoleAdmin      UserRole = "ADMIN"
 	UserRoleDispatcher UserRole = "DISPATCHER"
-	UserRoleDriver    UserRole = "DRIVER"
-	UserRoleViewer    UserRole = "VIEWER"
+	UserRoleDriver     UserRole = "DRIVER"
+	UserRoleViewer     UserRole = "VIEWER"
 )
 
 // User represents a user in the system
@@ -68,24 +69,32 @@ func (r UserRole) String() string {
 	return string(r)
 }
 
+// Email validation regex - strict validation
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$`)
+
 // ValidateCreateUserRequest validates the create user request
 func (req *CreateUserRequest) Validate() error {
 	if strings.TrimSpace(req.Email) == "" {
 		return errors.New("email is required")
 	}
-	
+
+	// Validate email format
+	if !emailRegex.MatchString(req.Email) {
+		return errors.New("invalid email format")
+	}
+
 	if strings.TrimSpace(req.Password) == "" {
 		return errors.New("password is required")
 	}
-	
+
 	if len(req.Password) < 8 {
 		return errors.New("password must be at least 8 characters long")
 	}
-	
+
 	if !req.Role.IsValid() {
 		return errors.New("invalid role")
 	}
-	
+
 	return nil
 }
 
@@ -94,11 +103,11 @@ func (req *LoginRequest) Validate() error {
 	if strings.TrimSpace(req.Email) == "" {
 		return errors.New("email is required")
 	}
-	
+
 	if strings.TrimSpace(req.Password) == "" {
 		return errors.New("password is required")
 	}
-	
+
 	return nil
 }
 
@@ -107,7 +116,7 @@ func (req *RefreshRequest) Validate() error {
 	if strings.TrimSpace(req.RefreshToken) == "" {
 		return errors.New("refresh token is required")
 	}
-	
+
 	return nil
 }
 

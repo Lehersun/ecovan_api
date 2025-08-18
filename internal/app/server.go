@@ -11,7 +11,6 @@ import (
 	"eco-van-api/internal/adapter/repo/pg"
 	"eco-van-api/internal/adapter/telemetry"
 	appconfig "eco-van-api/internal/config"
-	"eco-van-api/internal/models"
 	"eco-van-api/internal/service"
 
 	"github.com/go-chi/chi/v5"
@@ -132,19 +131,22 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 			authService := service.NewAuthService(userRepo, jwtManager)
 			authHandler := httpmiddleware.NewAuthHandler(authService)
 			authMiddleware := httpmiddleware.NewAuthMiddleware(jwtManager)
-			
+			rbacMiddleware := httpmiddleware.NewRBACMiddleware()
+
 			// Require authentication for all user endpoints
 			r.Use(authMiddleware.RequireAuth)
-			
-			// Admin-only endpoints
-			r.With(authMiddleware.RequireRole(models.UserRoleAdmin)).Group(func(r chi.Router) {
+
+			// Read endpoints - accessible by all authenticated users (ADMIN, DISPATCHER, DRIVER, VIEWER)
+			r.With(rbacMiddleware.RequireReadAccess).Group(func(r chi.Router) {
+				r.Get("/", authHandler.ListUsers)
+				r.Get("/{id}", authHandler.GetUser)
+			})
+
+			// Write endpoints - ADMIN only
+			r.With(rbacMiddleware.RequireWriteAccess).Group(func(r chi.Router) {
 				r.Post("/", authHandler.CreateUser)
 				r.Delete("/{id}", authHandler.DeleteUser)
 			})
-			
-			// Endpoints accessible by authenticated users
-			r.Get("/", authHandler.ListUsers)
-			r.Get("/{id}", authHandler.GetUser)
 		})
 	})
 

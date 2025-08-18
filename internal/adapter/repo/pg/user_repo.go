@@ -156,7 +156,7 @@ func (r *UserRepository) List(ctx context.Context, page, pageSize int) ([]*model
 // Delete removes a user by ID
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM users WHERE id = $1`
-	
+
 	result, err := r.db.pool.Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)

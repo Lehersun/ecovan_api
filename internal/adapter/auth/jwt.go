@@ -14,7 +14,7 @@ const (
 	// Token types
 	TokenTypeAccess  = "access"
 	TokenTypeRefresh = "refresh"
-	
+
 	// Default TTLs
 	AccessTokenTTL  = 15 * time.Minute
 	RefreshTokenTTL = 30 * 24 * time.Hour // 30 days
@@ -22,16 +22,16 @@ const (
 
 // Claims represents the JWT claims
 type Claims struct {
-	UserID uuid.UUID    `json:"sub"`
+	UserID uuid.UUID       `json:"sub"`
 	Role   models.UserRole `json:"role"`
-	Type   string       `json:"typ"`
+	Type   string          `json:"typ"`
 	jwt.RegisteredClaims
 }
 
 // JWTManager handles JWT token operations
 type JWTManager struct {
-	secretKey []byte
-	accessTTL time.Duration
+	secretKey  []byte
+	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 

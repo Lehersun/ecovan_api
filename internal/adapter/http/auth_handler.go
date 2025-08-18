@@ -47,7 +47,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Return success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		WriteInternalError(w, "Failed to encode response")
+		return
+	}
 }
 
 // Refresh handles token refresh requests
@@ -74,7 +77,10 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	// Return success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		WriteInternalError(w, "Failed to encode response")
+		return
+	}
 }
 
 // CreateUser handles user creation requests
@@ -101,7 +107,10 @@ func (h *AuthHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Return success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		WriteInternalError(w, "Failed to encode response")
+		return
+	}
 }
 
 // GetUser handles user retrieval requests
@@ -122,7 +131,10 @@ func (h *AuthHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	// Return success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(user)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		WriteInternalError(w, "Failed to encode response")
+		return
+	}
 }
 
 // ListUsers handles user listing requests
@@ -153,20 +165,20 @@ func (h *AuthHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success response
+	// Return success response with proper format
 	response := map[string]interface{}{
-		"users":      users,
-		"pagination": map[string]interface{}{
-			"page":      page,
-			"pageSize":  pageSize,
-			"total":     total,
-			"totalPages": (total + pageSize - 1) / pageSize,
-		},
+		"total": total,
+		"page":  page,
+		"pageSize": pageSize,
+		"items": users,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		WriteInternalError(w, "Failed to encode response")
+		return
+	}
 }
 
 // DeleteUser handles user deletion requests
