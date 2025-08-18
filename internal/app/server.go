@@ -70,15 +70,19 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB) {
 
 	// Readiness check endpoint
 	router.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
 		// Check database connectivity
 		if err := db.Ping(r.Context()); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintf(w, `{"status":"unavailable","error":"database connection failed"}`)
+			// Use Problem JSON format for database down scenario
+			httpmiddleware.WriteCustomProblem(w, 
+				"/errors/service-unavailable", 
+				"Service unavailable", 
+				http.StatusServiceUnavailable, 
+				"database ping failed", 
+				"/readyz")
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{"status":"ready"}`)
 	})
@@ -103,6 +107,18 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB) {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{"message":"API v1","endpoints":["/healthz","/metrics"]}`)
 		})
+	})
+
+	// 404 handler for unmatched routes
+	router.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		httpmiddleware.WriteNotFound(w, "The requested resource was not found")
+	})
+
+	// Method not allowed handler
+	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		httpmiddleware.WriteProblemWithType(w, http.StatusMethodNotAllowed, 
+			"/errors/method-not-allowed", 
+			"The HTTP method is not allowed for this resource")
 	})
 }
 
