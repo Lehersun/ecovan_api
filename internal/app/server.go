@@ -6,10 +6,13 @@ import (
 	"log"
 	"net/http"
 
+	"eco-van-api/internal/adapter/auth"
 	httpmiddleware "eco-van-api/internal/adapter/http"
 	"eco-van-api/internal/adapter/repo/pg"
 	"eco-van-api/internal/adapter/telemetry"
 	appconfig "eco-van-api/internal/config"
+	"eco-van-api/internal/models"
+	"eco-van-api/internal/service"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -40,7 +43,7 @@ func NewServer(cfg *appconfig.Config, telemetry *telemetry.Manager, db *pg.DB) *
 	router.Use(mw.MetricsInFlight())
 
 	// Setup routes
-	setupRoutes(router, telemetry, db)
+	setupRoutes(router, telemetry, db, cfg)
 
 	server := &http.Server{
 		Addr:         cfg.HTTP.Addr,
@@ -60,7 +63,7 @@ func NewServer(cfg *appconfig.Config, telemetry *telemetry.Manager, db *pg.DB) *
 }
 
 // setupRoutes configures the application routes
-func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB) {
+func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg *appconfig.Config) {
 	// Health check endpoint
 	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -73,11 +76,11 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB) {
 		// Check database connectivity
 		if err := db.Ping(r.Context()); err != nil {
 			// Use Problem JSON format for database down scenario
-			httpmiddleware.WriteCustomProblem(w, 
-				"/errors/service-unavailable", 
-				"Service unavailable", 
-				http.StatusServiceUnavailable, 
-				"database ping failed", 
+			httpmiddleware.WriteCustomProblem(w,
+				"/errors/service-unavailable",
+				"Service unavailable",
+				http.StatusServiceUnavailable,
+				"database ping failed",
 				"/readyz")
 			return
 		}
@@ -99,13 +102,49 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB) {
 		router.Get("/metrics", telemetry.Metrics.GetHandler().ServeHTTP)
 	}
 
-	// API v1 routes placeholder
+	// API v1 routes
 	router.Route("/api/v1", func(r chi.Router) {
-		// TODO: Add API routes here
+		// Public endpoints
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `{"message":"API v1","endpoints":["/healthz","/metrics"]}`)
+			fmt.Fprintf(w, `{"message":"API v1","endpoints":["/healthz","/metrics","/auth/login","/auth/refresh"]}`)
+		})
+
+		// Authentication routes
+		r.Route("/auth", func(r chi.Router) {
+			// Create auth handler
+			userRepo := pg.NewUserRepository(db)
+			jwtManager := auth.NewDefaultJWTManager(cfg.Auth.JWTSecret)
+			authService := service.NewAuthService(userRepo, jwtManager)
+			authHandler := httpmiddleware.NewAuthHandler(authService)
+
+			// Public auth endpoints
+			r.Post("/login", authHandler.Login)
+			r.Post("/refresh", authHandler.Refresh)
+		})
+
+		// Protected user management endpoints
+		r.Route("/users", func(r chi.Router) {
+			// Create auth handler and middleware
+			userRepo := pg.NewUserRepository(db)
+			jwtManager := auth.NewDefaultJWTManager(cfg.Auth.JWTSecret)
+			authService := service.NewAuthService(userRepo, jwtManager)
+			authHandler := httpmiddleware.NewAuthHandler(authService)
+			authMiddleware := httpmiddleware.NewAuthMiddleware(jwtManager)
+			
+			// Require authentication for all user endpoints
+			r.Use(authMiddleware.RequireAuth)
+			
+			// Admin-only endpoints
+			r.With(authMiddleware.RequireRole(models.UserRoleAdmin)).Group(func(r chi.Router) {
+				r.Post("/", authHandler.CreateUser)
+				r.Delete("/{id}", authHandler.DeleteUser)
+			})
+			
+			// Endpoints accessible by authenticated users
+			r.Get("/", authHandler.ListUsers)
+			r.Get("/{id}", authHandler.GetUser)
 		})
 	})
 
@@ -116,8 +155,8 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB) {
 
 	// Method not allowed handler
 	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		httpmiddleware.WriteProblemWithType(w, http.StatusMethodNotAllowed, 
-			"/errors/method-not-allowed", 
+		httpmiddleware.WriteProblemWithType(w, http.StatusMethodNotAllowed,
+			"/errors/method-not-allowed",
 			"The HTTP method is not allowed for this resource")
 	})
 }

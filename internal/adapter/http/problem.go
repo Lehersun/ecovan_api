@@ -16,16 +16,16 @@ type Problem struct {
 
 // Common problem types
 const (
-	ProblemTypeInvalidInput        = "/errors/invalid-input"
-	ProblemTypeUnauthorized        = "/errors/unauthorized"
-	ProblemTypeForbidden           = "/errors/forbidden"
-	ProblemTypeNotFound            = "/errors/not-found"
-	ProblemTypeConflict            = "/errors/conflict"
-	ProblemTypeValidationError     = "/errors/validation-error"
-	ProblemTypeInternalError       = "/errors/internal-error"
-	ProblemTypeServiceUnavailable  = "/errors/service-unavailable"
-	ProblemTypeBadRequest          = "/errors/bad-request"
-	ProblemTypeMethodNotAllowed    = "/errors/method-not-allowed"
+	ProblemTypeInvalidInput         = "/errors/invalid-input"
+	ProblemTypeUnauthorized         = "/errors/unauthorized"
+	ProblemTypeForbidden            = "/errors/forbidden"
+	ProblemTypeNotFound             = "/errors/not-found"
+	ProblemTypeConflict             = "/errors/conflict"
+	ProblemTypeValidationError      = "/errors/validation-error"
+	ProblemTypeInternalError        = "/errors/internal-error"
+	ProblemTypeServiceUnavailable   = "/errors/service-unavailable"
+	ProblemTypeBadRequest           = "/errors/bad-request"
+	ProblemTypeMethodNotAllowed     = "/errors/method-not-allowed"
 	ProblemTypeUnsupportedMediaType = "/errors/unsupported-media-type"
 )
 
@@ -87,10 +87,10 @@ var CommonProblems = map[int]Problem{
 func WriteProblem(w http.ResponseWriter, p Problem) {
 	// Set content type header
 	w.Header().Set("Content-Type", "application/problem+json")
-	
+
 	// Set status code
 	w.WriteHeader(p.Status)
-	
+
 	// Encode and write the problem
 	if err := json.NewEncoder(w).Encode(p); err != nil {
 		// Fallback to a simple error if JSON encoding fails

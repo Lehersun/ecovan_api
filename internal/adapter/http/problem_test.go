@@ -124,7 +124,7 @@ func TestCommonProblems_StatusCodes(t *testing.T) {
 func TestWriteProblemWithDetail(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	detail := "Custom error detail"
-	
+
 	WriteProblemWithDetail(recorder, http.StatusNotFound, detail)
 
 	if recorder.Code != http.StatusNotFound {
@@ -145,7 +145,7 @@ func TestWriteProblemWithType(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	customType := "/errors/custom"
 	detail := "Custom error detail"
-	
+
 	WriteProblemWithType(recorder, http.StatusBadRequest, customType, detail)
 
 	if recorder.Code != http.StatusBadRequest {
@@ -172,7 +172,7 @@ func TestWriteCustomProblem(t *testing.T) {
 	status := 499
 	detail := "Custom error detail"
 	instance := "/custom/endpoint"
-	
+
 	WriteCustomProblem(recorder, customType, title, status, detail, instance)
 
 	if recorder.Code != status {
@@ -221,7 +221,7 @@ func TestHelperFunctions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			detail := "Test detail"
-			
+
 			tc.helper(recorder, detail)
 
 			if recorder.Code != tc.expected {

@@ -46,6 +46,12 @@ func New() (*App, error) {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
+	// Seed admin user
+	userRepo := pg.NewUserRepository(db)
+	if err := userRepo.SeedAdminUser(context.Background()); err != nil {
+		log.Printf("Warning: Failed to seed admin user: %v", err)
+	}
+
 	// Run migrations using migrate command
 	// For now, we'll skip migrations in the Go code and rely on the migrate command
 	// TODO: Implement proper migration handling
