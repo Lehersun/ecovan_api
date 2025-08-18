@@ -20,7 +20,7 @@ var TestPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
-	
+
 	// Start PostgreSQL container
 	pg, err := tcpg.RunContainer(ctx,
 		tcpg.WithDatabase("waste_test"),
@@ -75,7 +75,7 @@ func applyMigrations(dsn string) error {
 	// For now, let's skip migrations in tests and just create the basic schema
 	// This avoids the complex migration setup issues
 	log.Println("Skipping migrations, creating basic schema directly")
-	
+
 	// Create a temporary connection to run schema creation
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dsn)
@@ -152,7 +152,7 @@ func applyMigrations(dsn string) error {
 			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);
 	`
-	
+
 	if _, err := pool.Exec(ctx, schemaSQL); err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
@@ -164,75 +164,75 @@ func applyMigrations(dsn string) error {
 // WithTx runs a test function within a database transaction and automatically rolls back
 func WithTx(t *testing.T, fn func(ctx context.Context, tx pgx.Tx)) {
 	t.Helper()
-	
+
 	ctx := context.Background()
 	tx, err := TestPool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer tx.Rollback(ctx)
-	
+
 	fn(ctx, tx)
 }
 
 // MakeClient creates a minimal valid client record
 func MakeClient(t *testing.T, ctx context.Context, tx pgx.Tx, name string) uuid.UUID {
 	t.Helper()
-	
+
 	if name == "" {
 		name = "Acme-" + uuid.NewString()[:8]
 	}
-	
+
 	clientID := uuid.New()
 	query := `
 		INSERT INTO clients (id, name, phone, email)
 		VALUES ($1, $2, $3, $4)
 	`
-	
+
 	_, err := tx.Exec(ctx, query, clientID, name, "+1234567890", "test@example.com")
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
 	}
-	
+
 	return clientID
 }
 
 // MakeClientObject creates a minimal valid client object record
 func MakeClientObject(t *testing.T, ctx context.Context, tx pgx.Tx, clientID uuid.UUID, name string) uuid.UUID {
 	t.Helper()
-	
+
 	if name == "" {
 		name = "Object-" + uuid.NewString()[:8]
 	}
-	
+
 	objectID := uuid.New()
 	query := `
 		INSERT INTO client_objects (id, client_id, name, address)
 		VALUES ($1, $2, $3, $4)
 	`
-	
+
 	_, err := tx.Exec(ctx, query, objectID, clientID, name, "123 Test St")
 	if err != nil {
 		t.Fatalf("Failed to create client object: %v", err)
 	}
-	
+
 	return objectID
 }
 
 // MakeOrder creates a minimal valid order record
 func MakeOrder(t *testing.T, ctx context.Context, tx pgx.Tx, clientID, clientObjectID uuid.UUID) uuid.UUID {
 	t.Helper()
-	
+
 	orderID := uuid.New()
 	query := `
 		INSERT INTO orders (id, client_id, client_object_id, status)
 		VALUES ($1, $2, $3, $4)
 	`
-	
+
 	_, err := tx.Exec(ctx, query, orderID, clientID, clientObjectID, "pending")
 	if err != nil {
 		t.Fatalf("Failed to create order: %v", err)
 	}
-	
+
 	return orderID
 }
