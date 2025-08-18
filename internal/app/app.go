@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"eco-van-api/internal/adapter/telemetry"
 	"eco-van-api/internal/config"
 )
 
@@ -17,8 +18,9 @@ const (
 
 // App represents the main application
 type App struct {
-	server *Server
-	config *config.Config
+	server    *Server
+	config    *config.Config
+	telemetry *telemetry.Manager
 }
 
 // New creates a new App instance
@@ -29,11 +31,18 @@ func New() (*App, error) {
 		return nil, err
 	}
 
-	server := NewServer(cfg)
+	// Initialize telemetry
+	telemetry, err := telemetry.NewManager(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	server := NewServer(cfg, telemetry)
 
 	return &App{
-		server: server,
-		config: cfg,
+		server:    server,
+		config:    cfg,
+		telemetry: telemetry,
 	}, nil
 }
 
@@ -71,6 +80,12 @@ func Run(ctx context.Context) error {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer shutdownCancel()
 
+	// Shutdown telemetry first
+	if err := app.telemetry.Shutdown(shutdownCtx); err != nil {
+		log.Printf("Error during telemetry shutdown: %v", err)
+	}
+
+	// Shutdown server
 	if err := app.server.Shutdown(shutdownCtx); err != nil {
 		log.Printf("Error during server shutdown: %v", err)
 		return err

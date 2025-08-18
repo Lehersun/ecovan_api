@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"eco-van-api/internal/adapter/telemetry"
 	"eco-van-api/internal/config"
 )
 
@@ -23,7 +24,14 @@ func TestServer_Shutdown(t *testing.T) {
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	server := NewServer(cfg)
+	// Create telemetry manager for testing
+	telemetry, err := telemetry.NewManager(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create telemetry manager: %v", err)
+	}
+	defer telemetry.TestCleanup()
+
+	server := NewServer(cfg, telemetry)
 
 	// Start server in background
 	go func() {
@@ -65,7 +73,14 @@ func TestNewServer(t *testing.T) {
 		t.Fatalf("Failed to load config: %v", err)
 	}
 
-	server := NewServer(cfg)
+	// Create telemetry manager for testing
+	telemetry, err := telemetry.NewManager(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create telemetry manager: %v", err)
+	}
+	defer telemetry.TestCleanup()
+
+	server := NewServer(cfg, telemetry)
 
 	if server == nil {
 		t.Fatal("Expected server to be created, got nil")
