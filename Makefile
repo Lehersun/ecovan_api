@@ -174,6 +174,7 @@ test-db: ## Create PostgreSQL test database using Docker
 	@echo "Applying migrations to test database..."
 	@psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/0001_init.sql
 	@psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/0002_create_tables.sql
+	@psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/0002_users.sql
 	@echo "Test database created and migrated at postgres://app:app@localhost:5433/waste_test?sslmode=disable"
 
 test-db-stop: ## Stop and remove test database container
@@ -204,6 +205,7 @@ db: ## Create PostgreSQL database for local development using Docker
 		echo "Applying migrations to development database..."; \
 		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f migrations/0001_init.sql; \
 		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f migrations/0002_create_tables.sql; \
+		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f migrations/0002_users.sql; \
 		echo "Development database created and migrated at postgres://app:app@localhost:5432/eco_van_db?sslmode=disable"; \
 	fi
 
@@ -217,3 +219,56 @@ db-stop: ## Stop and remove development database container
 	fi
 
 db-reset-docker: db-stop db ## Reset development database container
+
+# Complete development environment setup and start
+dev: db ## Complete development setup: database + migrations + admin seed + application
+	@echo "🚀 Starting complete development environment..."
+	@echo "✅ Database: Running and migrated"
+	@echo "✅ Admin user: Will be seeded on first application start"
+	@echo "✅ Application: Starting..."
+	@echo ""
+	@echo "📋 Development environment includes:"
+	@echo "   • PostgreSQL database (port 5432)"
+	@echo "   • All migrations applied (init, tables, users)"
+	@echo "   • Admin user auto-seeding"
+	@echo "   • Application server (port 8080)"
+	@echo "   • Environment variables from .env"
+	@echo ""
+	@echo "🔐 Admin credentials:"
+	@echo "   • Email: admin@example.com"
+	@echo "   • Password: from ADMIN_PASSWORD env var (or default: admin123456)"
+	@echo ""
+	@echo "🌐 Application endpoints:"
+	@echo "   • Health: http://localhost:8080/healthz"
+	@echo "   • Ready: http://localhost:8080/readyz"
+	@echo "   • API: http://localhost:8080/api/v1"
+	@echo "   • Login: http://localhost:8080/api/v1/auth/login"
+	@echo ""
+	@if [ -f .env ]; then \
+		echo "📁 Loading environment from .env file..."; \
+		export $$(cat .env | grep -v '^#' | xargs); \
+		echo "🚀 Starting application..."; \
+		go run ./cmd/api; \
+	else \
+		echo "⚠️  Warning: .env file not found. Using default environment variables."; \
+		echo "💡 Run 'make env-setup' to create environment files."; \
+		echo "🚀 Starting application..."; \
+		go run ./cmd/api; \
+	fi
+
+# Stop development environment
+dev-stop: ## Stop development environment (database + application)
+	@echo "🛑 Stopping development environment..."
+	@echo "📱 Stopping application (if running)..."
+	@pkill -f "go run ./cmd/api" || echo "No application process found"
+	@echo "🗄️  Stopping development database..."
+	@make db-stop
+	@echo "✅ Development environment stopped"
+
+# Reset development environment (fresh start)
+dev-reset: dev-stop ## Reset development environment (stop + fresh start)
+	@echo "🔄 Resetting development environment..."
+	@echo "🗑️  Removing old database container..."
+	@make db-reset-docker
+	@echo "🚀 Starting fresh development environment..."
+	@make dev
