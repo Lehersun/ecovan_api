@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"eco-van-api/internal/adapter/telemetry"
+	"eco-van-api/internal/adapter/repo/pg"
 	"eco-van-api/internal/config"
 )
 
@@ -21,6 +23,7 @@ type App struct {
 	server    *Server
 	config    *config.Config
 	telemetry *telemetry.Manager
+	db        *pg.DB
 }
 
 // New creates a new App instance
@@ -37,12 +40,23 @@ func New() (*App, error) {
 		return nil, err
 	}
 
-	server := NewServer(cfg, telemetry)
+	// Initialize database
+	db, err := pg.NewDB(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize database: %w", err)
+	}
+
+	// Run migrations using migrate command
+	// For now, we'll skip migrations in the Go code and rely on the migrate command
+	// TODO: Implement proper migration handling
+
+	server := NewServer(cfg, telemetry, db)
 
 	return &App{
 		server:    server,
 		config:    cfg,
 		telemetry: telemetry,
+		db:        db,
 	}, nil
 }
 
@@ -84,6 +98,9 @@ func Run(ctx context.Context) error {
 	if err := app.telemetry.Shutdown(shutdownCtx); err != nil {
 		log.Printf("Error during telemetry shutdown: %v", err)
 	}
+
+	// Close database
+	app.db.Close()
 
 	// Shutdown server
 	if err := app.server.Shutdown(shutdownCtx); err != nil {

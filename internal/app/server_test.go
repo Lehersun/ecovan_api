@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"eco-van-api/internal/adapter/telemetry"
+	"eco-van-api/internal/adapter/repo/pg"
 	"eco-van-api/internal/config"
 )
 
@@ -31,7 +33,9 @@ func TestServer_Shutdown(t *testing.T) {
 	}
 	defer telemetry.TestCleanup()
 
-	server := NewServer(cfg, telemetry)
+	// Create a mock database for testing
+	mockDB := pg.NewMockDB()
+	server := NewServer(cfg, telemetry, mockDB)
 
 	// Start server in background
 	go func() {
@@ -80,7 +84,9 @@ func TestNewServer(t *testing.T) {
 	}
 	defer telemetry.TestCleanup()
 
-	server := NewServer(cfg, telemetry)
+	// Create a mock database for testing
+	mockDB := pg.NewMockDB()
+	server := NewServer(cfg, telemetry, mockDB)
 
 	if server == nil {
 		t.Fatal("Expected server to be created, got nil")
@@ -124,4 +130,65 @@ func TestConfig_DefaultValues(t *testing.T) {
 	if cfg.HTTP.IdleTimeout != 60*time.Second {
 		t.Errorf("Expected IdleTimeout 60s, got %v", cfg.HTTP.IdleTimeout)
 	}
+}
+
+func TestServer_ReadyzEndpoint(t *testing.T) {
+	// Set required environment variables for testing
+	os.Setenv("DB_DSN", "postgres://test:test@localhost:5432/test")
+	os.Setenv("JWT_SECRET", "test-secret")
+	defer func() {
+		os.Unsetenv("DB_DSN")
+		os.Unsetenv("JWT_SECRET")
+	}()
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Create telemetry manager for testing
+	telemetry, err := telemetry.NewManager(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create telemetry manager: %v", err)
+	}
+	defer telemetry.TestCleanup()
+
+	// Create a mock database for testing
+	mockDB := pg.NewMockDB()
+	server := NewServer(cfg, telemetry, mockDB)
+
+	// Start server in background
+	go func() {
+		_ = server.Start()
+	}()
+
+	// Give server time to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Test readyz endpoint
+	resp, err := http.Get("http://localhost:8080/readyz")
+	if err != nil {
+		t.Fatalf("Failed to make request to /readyz: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	// Test healthz endpoint
+	resp, err = http.Get("http://localhost:8080/healthz")
+	if err != nil {
+		t.Fatalf("Failed to make request to /healthz: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	// Shutdown server
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	server.Shutdown(ctx)
 }
