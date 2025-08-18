@@ -27,6 +27,9 @@ JWT_SECRET=your-secret-key-change-in-production
 ACCESS_TTL=15m
 REFRESH_TTL=720h
 
+# Admin User (created automatically on first run)
+ADMIN_PASSWORD=admin123456
+
 # Telemetry
 LOG_LEVEL=info
 OTLP_ENDPOINT=
@@ -53,6 +56,9 @@ DB_MAX_CONN_IDLE=1m
 
 # Test Authentication
 JWT_SECRET=test-secret-key
+
+# Test Admin User
+ADMIN_PASSWORD=test-admin-password
 
 # Test Telemetry
 LOG_LEVEL=warn

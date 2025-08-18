@@ -284,6 +284,9 @@ JWT_SECRET=your-secret-key-change-in-production
 ACCESS_TTL=15m
 REFRESH_TTL=720h
 
+# Admin User (created automatically on first run)
+ADMIN_PASSWORD=your-admin-password-change-in-production
+
 # Telemetry
 LOG_LEVEL=info
 OTLP_ENDPOINT=
@@ -306,6 +309,9 @@ DB_MAX_CONN_IDLE=1m
 # Test Authentication
 JWT_SECRET=test-secret-key
 
+# Test Admin User
+ADMIN_PASSWORD=test-admin-password
+
 # Test Telemetry
 LOG_LEVEL=warn
 ENABLE_METRICS=false
@@ -320,6 +326,81 @@ make env-setup
 # Or include in complete setup
 make dev-setup
 ```
+
+## Authentication & Admin User
+
+### **Admin User Setup**
+The application automatically creates an admin user on first startup:
+
+- **Email**: `admin@example.com`
+- **Role**: `ADMIN`
+- **Password**: Set via `ADMIN_PASSWORD` environment variable
+- **Default Password**: `admin123456` (if `ADMIN_PASSWORD` not set)
+
+### **Environment Variables**
+```bash
+# Required for admin user creation
+ADMIN_PASSWORD=your-secure-admin-password
+
+# JWT configuration
+JWT_SECRET=your-jwt-secret-key
+ACCESS_TTL=15m      # Access token lifetime
+REFRESH_TTL=720h    # Refresh token lifetime (30 days)
+```
+
+### **First Login**
+After starting the application for the first time:
+
+1. **Admin user is automatically created** with the configured password
+2. **Login endpoint**: `POST /api/v1/auth/login`
+3. **Request body**:
+   ```json
+   {
+     "email": "admin@example.com",
+     "password": "your-admin-password"
+   }
+   ```
+4. **Response**: Access and refresh tokens
+   ```json
+   {
+     "accessToken": "eyJ...",
+     "refreshToken": "eyJ...",
+     "expiresIn": 900
+   }
+   ```
+
+### **Token Usage**
+- **Access Token**: Include in `Authorization: Bearer <token>` header
+- **Token Expiry**: 15 minutes (configured via `ACCESS_TTL`)
+- **Refresh Token**: Use to get new access tokens via `POST /api/v1/auth/refresh`
+- **Refresh Expiry**: 30 days (configured via `REFRESH_TTL`)
+
+### **Protected Endpoints**
+All user management endpoints require authentication:
+
+```bash
+# List users (requires valid access token)
+GET /api/v1/users
+Authorization: Bearer <access-token>
+
+# Create user (ADMIN role required)
+POST /api/v1/users
+Authorization: Bearer <access-token>
+
+# Get user details
+GET /api/v1/users/{id}
+Authorization: Bearer <access-token>
+
+# Delete user (ADMIN role required)
+DELETE /api/v1/users/{id}
+Authorization: Bearer <access-token>
+```
+
+### **Role-Based Access Control**
+- **ADMIN**: Full access to all endpoints
+- **DISPATCHER**: Can view users, limited management
+- **DRIVER**: Basic user information access
+- **VIEWER**: Read-only access to user data
 
 ## Testing
 
@@ -411,6 +492,11 @@ make db
 make run
 ```
 
+**Note**: The `make env-setup` command creates default environment files. You may want to customize:
+- `ADMIN_PASSWORD`: Set a secure password for the admin user
+- `JWT_SECRET`: Use a strong, unique secret key
+- `DB_DSN`: Adjust database connection if needed
+
 ### **Daily Development**
 ```bash
 # Start application (automatically starts DB if needed)
@@ -454,6 +540,15 @@ make test-db-stop
    - Development DB uses port 5432
    - Test DB uses port 5433
    - Use `make db-stop` and `make test-db-stop` to free ports
+6. **Authentication issues**:
+   - Check `ADMIN_PASSWORD` is set in `.env`
+   - Verify `JWT_SECRET` is configured
+   - Ensure admin user exists (check application startup logs)
+   - Check database migrations have been applied
+7. **Protected endpoint access**:
+   - Include `Authorization: Bearer <token>` header
+   - Verify token hasn't expired (15 minutes for access tokens)
+   - Check user has required role for the endpoint
 
 ### Getting Help
 
@@ -481,6 +576,13 @@ The project uses two environment files for different purposes:
 
 **Note**: Both files are created automatically by `make env-setup` and contain all necessary configuration variables.
 
+### **Important Environment Variables**
+- **`ADMIN_PASSWORD`**: Password for the automatically created admin user
+- **`JWT_SECRET`**: Secret key for signing JWT tokens (change in production)
+- **`DB_DSN`**: Database connection string
+- **`ACCESS_TTL`**: Access token lifetime (default: 15 minutes)
+- **`REFRESH_TTL`**: Refresh token lifetime (default: 30 days)
+
 ## New Features & Enhancements
 
 ### **🚀 Enhanced Makefile Commands**
@@ -505,6 +607,14 @@ The project uses two environment files for different purposes:
 - **Transaction Isolation**: Each test runs in its own transaction
 - **Automatic Cleanup**: Containers removed after test completion
 - **Race Detection**: Support for concurrent testing
+
+### **🔐 Authentication System**
+- **JWT Tokens**: Access (15m) and refresh (30d) token support
+- **Password Security**: Argon2id hashing with configurable parameters
+- **Role-Based Access**: ADMIN, DISPATCHER, DRIVER, VIEWER roles
+- **Admin Auto-Seeding**: Automatic admin user creation on startup
+- **Protected Endpoints**: Middleware-based route protection
+- **Problem JSON**: RFC 7807 compliant error responses
 
 ## Contributing
 
