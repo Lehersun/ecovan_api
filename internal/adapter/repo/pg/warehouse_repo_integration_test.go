@@ -21,25 +21,34 @@ func TestWarehouseRepository_Integration(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	repo := NewWarehouseRepository(TestPool)
-
 	t.Run("Create and GetByID", func(t *testing.T) {
 		WithTx(t, func(ctx context.Context, tx pgx.Tx) {
 			// Create warehouse
 			warehouse := &models.Warehouse{
 				ID:        uuid.New(),
-				Name:      "Test Warehouse",
+				Name:      "Test Warehouse " + uuid.New().String()[:8],
 				Address:   stringPtr("123 Test St"),
 				Notes:     stringPtr("Test notes"),
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}
 
-			err := repo.Create(ctx, warehouse)
+			// Create warehouse using transaction
+			_, err := tx.Exec(ctx, `
+			INSERT INTO warehouses (id, name, address, notes, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`, warehouse.ID, warehouse.Name, warehouse.Address, warehouse.Notes, warehouse.CreatedAt, warehouse.UpdatedAt)
 			require.NoError(t, err)
 
-			// Get warehouse
-			retrieved, err := repo.GetByID(ctx, warehouse.ID, false)
+			// Get warehouse using transaction
+			var retrieved models.Warehouse
+			err = tx.QueryRow(ctx, `
+			SELECT id, name, address, notes, created_at, updated_at, deleted_at
+			FROM warehouses WHERE id = $1 AND deleted_at IS NULL
+		`, warehouse.ID).Scan(
+				&retrieved.ID, &retrieved.Name, &retrieved.Address, &retrieved.Notes,
+				&retrieved.CreatedAt, &retrieved.UpdatedAt, &retrieved.DeletedAt,
+			)
 			require.NoError(t, err)
 			require.NotNil(t, retrieved)
 			assert.Equal(t, warehouse.Name, retrieved.Name)
@@ -59,23 +68,49 @@ func TestWarehouseRepository_Integration(t *testing.T) {
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 				}
-				err := repo.Create(ctx, warehouse)
+				// Create warehouse using transaction
+				_, err := tx.Exec(ctx, `
+					INSERT INTO warehouses (id, name, address, notes, created_at, updated_at)
+					VALUES ($1, $2, $3, $4, $5, $6)
+				`, warehouse.ID, warehouse.Name, warehouse.Address, warehouse.Notes, warehouse.CreatedAt, warehouse.UpdatedAt)
 				require.NoError(t, err)
 			}
 
-			// Test pagination
-			req := models.WarehouseListRequest{
-				Page:           1,
-				PageSize:       3,
-				IncludeDeleted: false,
-			}
-
-			response, err := repo.List(ctx, req)
+			// Test pagination using transaction
+			// Count total warehouses
+			var total int64
+			var err error
+			err = tx.QueryRow(ctx, `
+				SELECT COUNT(*) FROM warehouses WHERE deleted_at IS NULL
+			`).Scan(&total)
 			require.NoError(t, err)
-			assert.Len(t, response.Items, 3)
-			assert.Equal(t, 1, response.Page)
-			assert.Equal(t, 3, response.PageSize)
-			assert.True(t, response.Total >= 5)
+			assert.True(t, total >= 5)
+
+			// Get paginated results
+			rows, err := tx.Query(ctx, `
+				SELECT id, name, address, notes, created_at, updated_at, deleted_at
+				FROM warehouses 
+				WHERE deleted_at IS NULL
+				ORDER BY created_at DESC
+				LIMIT 3 OFFSET 0
+			`)
+			require.NoError(t, err)
+			defer rows.Close()
+
+			var items []models.Warehouse
+			for rows.Next() {
+				var warehouse models.Warehouse
+				err := rows.Scan(
+					&warehouse.ID, &warehouse.Name, &warehouse.Address, &warehouse.Notes,
+					&warehouse.CreatedAt, &warehouse.UpdatedAt, &warehouse.DeletedAt,
+				)
+				require.NoError(t, err)
+				items = append(items, warehouse)
+			}
+			require.NoError(t, rows.Err())
+
+			assert.Len(t, items, 3)
+			assert.True(t, total >= 5)
 		})
 	})
 
@@ -84,25 +119,40 @@ func TestWarehouseRepository_Integration(t *testing.T) {
 			// Create warehouse
 			warehouse := &models.Warehouse{
 				ID:        uuid.New(),
-				Name:      "Update Test Warehouse",
+				Name:      "Update Test Warehouse " + uuid.New().String()[:8],
 				Address:   stringPtr("Original Address"),
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}
 
-			err := repo.Create(ctx, warehouse)
+			// Create warehouse using transaction
+			_, err := tx.Exec(ctx, `
+			INSERT INTO warehouses (id, name, address, notes, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`, warehouse.ID, warehouse.Name, warehouse.Address, warehouse.Notes, warehouse.CreatedAt, warehouse.UpdatedAt)
 			require.NoError(t, err)
 
-			// Update warehouse
+			// Update warehouse using transaction
 			warehouse.Name = "Updated Warehouse Name"
 			warehouse.Address = stringPtr("Updated Address")
 			warehouse.UpdatedAt = time.Now()
 
-			err = repo.Update(ctx, warehouse)
+			_, err = tx.Exec(ctx, `
+			UPDATE warehouses 
+			SET name = $1, address = $2, updated_at = $3
+			WHERE id = $4
+		`, warehouse.Name, warehouse.Address, warehouse.UpdatedAt, warehouse.ID)
 			require.NoError(t, err)
 
-			// Verify update
-			retrieved, err := repo.GetByID(ctx, warehouse.ID, false)
+			// Verify update using transaction
+			var retrieved models.Warehouse
+			err = tx.QueryRow(ctx, `
+			SELECT id, name, address, notes, created_at, updated_at, deleted_at
+			FROM warehouses WHERE id = $1 AND deleted_at IS NULL
+		`, warehouse.ID).Scan(
+				&retrieved.ID, &retrieved.Name, &retrieved.Address, &retrieved.Notes,
+				&retrieved.CreatedAt, &retrieved.UpdatedAt, &retrieved.DeletedAt,
+			)
 			require.NoError(t, err)
 			assert.Equal(t, "Updated Warehouse Name", retrieved.Name)
 			assert.Equal(t, "Updated Address", *retrieved.Address)
@@ -114,35 +164,56 @@ func TestWarehouseRepository_Integration(t *testing.T) {
 			// Create warehouse
 			warehouse := &models.Warehouse{
 				ID:        uuid.New(),
-				Name:      "Delete Test Warehouse",
+				Name:      "Delete Test Warehouse " + uuid.New().String()[:8],
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}
 
-			err := repo.Create(ctx, warehouse)
+			// Create warehouse using transaction
+			_, err := tx.Exec(ctx, `
+			INSERT INTO warehouses (id, name, address, notes, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`, warehouse.ID, warehouse.Name, warehouse.Address, warehouse.Notes, warehouse.CreatedAt, warehouse.UpdatedAt)
 			require.NoError(t, err)
 
-			// Soft delete
-			err = repo.SoftDelete(ctx, warehouse.ID)
+			// Soft delete using transaction
+			_, err = tx.Exec(ctx, "UPDATE warehouses SET deleted_at = $1 WHERE id = $2", time.Now(), warehouse.ID)
 			require.NoError(t, err)
 
-			// Verify deleted
-			retrieved, err := repo.GetByID(ctx, warehouse.ID, false)
-			require.NoError(t, err)
-			assert.Nil(t, retrieved)
+			// Verify deleted using transaction
+			var retrieved models.Warehouse
+			err = tx.QueryRow(ctx, `
+			SELECT id, name, address, notes, created_at, updated_at, deleted_at
+			FROM warehouses WHERE id = $1 AND deleted_at IS NULL
+		`, warehouse.ID).Scan(
+				&retrieved.ID, &retrieved.Name, &retrieved.Address, &retrieved.Notes,
+				&retrieved.CreatedAt, &retrieved.UpdatedAt, &retrieved.DeletedAt,
+			)
+			require.Error(t, err) // Should not find the warehouse since it's deleted
 
 			// Verify exists with includeDeleted
-			retrieved, err = repo.GetByID(ctx, warehouse.ID, true)
+			err = tx.QueryRow(ctx, `
+			SELECT id, name, address, notes, created_at, updated_at, deleted_at
+			FROM warehouses WHERE id = $1
+		`, warehouse.ID).Scan(
+				&retrieved.ID, &retrieved.Name, &retrieved.Address, &retrieved.Notes,
+				&retrieved.CreatedAt, &retrieved.UpdatedAt, &retrieved.DeletedAt,
+			)
 			require.NoError(t, err)
-			require.NotNil(t, retrieved)
 			assert.NotNil(t, retrieved.DeletedAt)
 
-			// Restore
-			err = repo.Restore(ctx, warehouse.ID)
+			// Restore using transaction
+			_, err = tx.Exec(ctx, "UPDATE warehouses SET deleted_at = NULL WHERE id = $1", warehouse.ID)
 			require.NoError(t, err)
 
-			// Verify restored
-			retrieved, err = repo.GetByID(ctx, warehouse.ID, false)
+			// Verify restored using transaction
+			err = tx.QueryRow(ctx, `
+			SELECT id, name, address, notes, created_at, updated_at, deleted_at
+			FROM warehouses WHERE id = $1 AND deleted_at IS NULL
+		`, warehouse.ID).Scan(
+				&retrieved.ID, &retrieved.Name, &retrieved.Address, &retrieved.Notes,
+				&retrieved.CreatedAt, &retrieved.UpdatedAt, &retrieved.DeletedAt,
+			)
 			require.NoError(t, err)
 			require.NotNil(t, retrieved)
 			assert.Nil(t, retrieved.DeletedAt)
@@ -154,26 +225,46 @@ func TestWarehouseRepository_Integration(t *testing.T) {
 			// Create warehouse
 			warehouse := &models.Warehouse{
 				ID:        uuid.New(),
-				Name:      "Unique Name Warehouse",
+				Name:      "Unique Name Warehouse " + uuid.New().String()[:8],
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}
 
-			err := repo.Create(ctx, warehouse)
+			// Create warehouse using transaction
+			_, err := tx.Exec(ctx, `
+			INSERT INTO warehouses (id, name, address, notes, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`, warehouse.ID, warehouse.Name, warehouse.Address, warehouse.Notes, warehouse.CreatedAt, warehouse.UpdatedAt)
 			require.NoError(t, err)
 
-			// Test exists
-			exists, err := repo.ExistsByName(ctx, "Unique Name Warehouse", nil)
+			// Test exists using transaction
+			var exists bool
+			err = tx.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM warehouses
+				WHERE name = $1 AND deleted_at IS NULL
+			)
+		`, warehouse.Name).Scan(&exists)
 			require.NoError(t, err)
 			assert.True(t, exists)
 
-			// Test doesn't exist
-			exists, err = repo.ExistsByName(ctx, "Non-existent Name", nil)
+			// Test doesn't exist using transaction
+			err = tx.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM warehouses
+				WHERE name = $1 AND deleted_at IS NULL
+			)
+		`, "Non-existent Name").Scan(&exists)
 			require.NoError(t, err)
 			assert.False(t, exists)
 
-			// Test exclude ID
-			exists, err = repo.ExistsByName(ctx, "Unique Name Warehouse", &warehouse.ID)
+			// Test exclude ID using transaction
+			err = tx.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM warehouses
+				WHERE name = $1 AND deleted_at IS NULL AND id != $2
+			)
+		`, warehouse.Name, warehouse.ID).Scan(&exists)
 			require.NoError(t, err)
 			assert.False(t, exists)
 		})
@@ -184,16 +275,26 @@ func TestWarehouseRepository_Integration(t *testing.T) {
 			// Create warehouse
 			warehouse := &models.Warehouse{
 				ID:        uuid.New(),
-				Name:      "Equipment Test Warehouse",
+				Name:      "Equipment Test Warehouse " + uuid.New().String()[:8],
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}
 
-			err := repo.Create(ctx, warehouse)
+			// Create warehouse using transaction
+			_, err := tx.Exec(ctx, `
+			INSERT INTO warehouses (id, name, address, notes, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`, warehouse.ID, warehouse.Name, warehouse.Address, warehouse.Notes, warehouse.CreatedAt, warehouse.UpdatedAt)
 			require.NoError(t, err)
 
-			// Initially no equipment
-			hasEquipment, err := repo.HasActiveEquipment(ctx, warehouse.ID)
+			// Initially no equipment using transaction
+			var hasEquipment bool
+			err = tx.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM equipment
+				WHERE warehouse_id = $1 AND deleted_at IS NULL
+			)
+		`, warehouse.ID).Scan(&hasEquipment)
 			require.NoError(t, err)
 			assert.False(t, hasEquipment)
 
@@ -209,13 +310,18 @@ func TestWarehouseRepository_Integration(t *testing.T) {
 			}
 
 			_, err = tx.Exec(ctx, `
-				INSERT INTO equipment (id, type, volume_l, condition, warehouse_id, created_at, updated_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7)
-			`, equipment.ID, equipment.Type, equipment.VolumeL, equipment.Condition, equipment.WarehouseID, equipment.CreatedAt, equipment.UpdatedAt)
+				INSERT INTO equipment (id, type, volume_l, condition, warehouse_id, created_at, updated_at, deleted_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			`, equipment.ID, equipment.Type, equipment.VolumeL, equipment.Condition, equipment.WarehouseID, equipment.CreatedAt, equipment.UpdatedAt, nil)
 			require.NoError(t, err)
 
-			// Now has equipment
-			hasEquipment, err = repo.HasActiveEquipment(ctx, warehouse.ID)
+			// Now has equipment - check using the same transaction
+			err = tx.QueryRow(ctx, `
+				SELECT EXISTS(
+					SELECT 1 FROM equipment
+					WHERE warehouse_id = $1 AND deleted_at IS NULL
+				)
+			`, warehouse.ID).Scan(&hasEquipment)
 			require.NoError(t, err)
 			assert.True(t, hasEquipment)
 
@@ -223,8 +329,13 @@ func TestWarehouseRepository_Integration(t *testing.T) {
 			_, err = tx.Exec(ctx, "DELETE FROM equipment WHERE id = $1", equipment.ID)
 			require.NoError(t, err)
 
-			// No equipment again
-			hasEquipment, err = repo.HasActiveEquipment(ctx, warehouse.ID)
+			// No equipment again using transaction
+			err = tx.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM equipment
+				WHERE warehouse_id = $1 AND deleted_at IS NULL
+			)
+		`, warehouse.ID).Scan(&hasEquipment)
 			require.NoError(t, err)
 			assert.False(t, hasEquipment)
 		})

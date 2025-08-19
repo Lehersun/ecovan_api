@@ -230,6 +230,34 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 				r.Post("/{id}/restore", warehouseHandler.RestoreWarehouse)
 			})
 		})
+
+		// Protected equipment management endpoints
+		r.Route("/equipment", func(r chi.Router) {
+			// Create equipment handler and middleware
+			equipmentRepo := pg.NewEquipmentRepository(db.GetPool())
+			equipmentService := service.NewEquipmentService(equipmentRepo)
+			equipmentHandler := httpmiddleware.NewEquipmentHandler(equipmentService)
+			equipmentJWTManager := auth.NewDefaultJWTManager(cfg.Auth.JWTSecret)
+			authMiddleware := httpmiddleware.NewAuthMiddleware(equipmentJWTManager)
+			rbacMiddleware := httpmiddleware.NewRBACMiddleware()
+
+			// Require authentication for all equipment endpoints
+			r.Use(authMiddleware.RequireAuth)
+
+			// Read endpoints - accessible by all authenticated users
+			r.With(rbacMiddleware.RequireReadAccess).Group(func(r chi.Router) {
+				r.Get("/", equipmentHandler.ListEquipment)
+				r.Get("/{id}", equipmentHandler.GetEquipment)
+			})
+
+			// Write endpoints - ADMIN and DISPATCHER only
+			r.With(rbacMiddleware.RequireWriteAccess).Group(func(r chi.Router) {
+				r.Post("/", equipmentHandler.CreateEquipment)
+				r.Put("/{id}", equipmentHandler.UpdateEquipment)
+				r.Delete("/{id}", equipmentHandler.DeleteEquipment)
+				r.Post("/{id}/restore", equipmentHandler.RestoreEquipment)
+			})
+		})
 	})
 
 	// 404 handler for unmatched routes

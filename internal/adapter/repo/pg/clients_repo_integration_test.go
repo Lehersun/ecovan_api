@@ -392,10 +392,10 @@ func TestClientObjectsRepository_GuardChecks(t *testing.T) {
 		// Test 2: Check guard against active equipment
 		equipmentID := uuid.New()
 		equipmentQuery := `
-			INSERT INTO equipment (id, type, volume_l, condition, client_object_id, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			INSERT INTO equipment (id, type, volume_l, condition, client_object_id, created_at, updated_at, deleted_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		`
-		_, err = tx.Exec(ctx, equipmentQuery, equipmentID, "BIN", 100, "GOOD", objectID, time.Now(), time.Now())
+		_, err = tx.Exec(ctx, equipmentQuery, equipmentID, "BIN", 100, "GOOD", objectID, time.Now(), time.Now(), nil)
 		require.NoError(t, err)
 
 		// Check if we can detect active equipment
@@ -454,10 +454,10 @@ func TestClientObjectsRepository_GuardChecksAfterResolution(t *testing.T) {
 		// Create active equipment
 		equipmentID := uuid.New()
 		equipmentQuery := `
-			INSERT INTO equipment (id, type, volume_l, condition, client_object_id, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			INSERT INTO equipment (id, type, volume_l, condition, client_object_id, created_at, updated_at, deleted_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		`
-		_, err = tx.Exec(ctx, equipmentQuery, equipmentID, "BIN", 100, "GOOD", objectID, time.Now(), time.Now())
+		_, err = tx.Exec(ctx, equipmentQuery, equipmentID, "BIN", 100, "GOOD", objectID, time.Now(), time.Now(), nil)
 		require.NoError(t, err)
 
 		// Step 1: Verify deletion is blocked
@@ -483,7 +483,7 @@ func TestClientObjectsRepository_GuardChecksAfterResolution(t *testing.T) {
 			INSERT INTO warehouses (id, name, created_at, updated_at)
 			VALUES ($1, $2, $3, $4)
 		`
-		_, err = tx.Exec(ctx, warehouseQuery, warehouseID, "Test Warehouse", time.Now(), time.Now())
+		_, err = tx.Exec(ctx, warehouseQuery, warehouseID, "Test Warehouse "+uuid.New().String()[:8], time.Now(), time.Now())
 		require.NoError(t, err)
 
 		moveEquipmentQuery := `UPDATE equipment SET client_object_id = NULL, warehouse_id = $1, updated_at = $2 WHERE id = $3`
