@@ -155,9 +155,6 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 
 		// Protected client management endpoints
 		r.Route("/clients", func(r chi.Router) {
-			// Debug: Log that we're setting up client routes
-			fmt.Println("Setting up client routes...")
-
 			// Create client handler and middleware
 			clientRepo := pg.NewClientRepository(db.GetPool())
 			clientService := service.NewClientService(clientRepo)
@@ -168,13 +165,6 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 
 			// Require authentication for all client endpoints
 			r.Use(authMiddleware.RequireAuth)
-
-			// Debug: Add a simple test endpoint (after middleware)
-			r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				fmt.Fprintf(w, `{"message":"Client test endpoint working"}`)
-			})
 
 			// Read endpoints - accessible by all authenticated users
 			r.With(rbacMiddleware.RequireReadAccess).Group(func(r chi.Router) {
@@ -188,6 +178,28 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 				r.Put("/{id}", clientHandler.UpdateClient)
 				r.Delete("/{id}", clientHandler.DeleteClient)
 				r.Post("/{id}/restore", clientHandler.RestoreClient)
+			})
+
+			// Client Objects routes - nested under clients
+			r.Route("/{clientId}/objects", func(r chi.Router) {
+				// Create client object handler
+				clientObjectRepo := pg.NewClientObjectRepository(db.GetPool())
+				clientObjectService := service.NewClientObjectService(clientObjectRepo, clientRepo)
+				clientObjectHandler := httpmiddleware.NewClientObjectHandler(clientObjectService)
+
+				// Read endpoints - accessible by all authenticated users
+				r.With(rbacMiddleware.RequireReadAccess).Group(func(r chi.Router) {
+					r.Get("/", clientObjectHandler.ListClientObjects)
+					r.Get("/{id}", clientObjectHandler.GetClientObject)
+				})
+
+				// Write endpoints - ADMIN and DISPATCHER only
+				r.With(rbacMiddleware.RequireWriteAccess).Group(func(r chi.Router) {
+					r.Post("/", clientObjectHandler.CreateClientObject)
+					r.Put("/{id}", clientObjectHandler.UpdateClientObject)
+					r.Delete("/{id}", clientObjectHandler.DeleteClientObject)
+					r.Post("/{id}/restore", clientObjectHandler.RestoreClientObject)
+				})
 			})
 		})
 	})
