@@ -106,7 +106,7 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `{"message":"API v1","endpoints":["/healthz","/metrics","/auth/login","/auth/refresh","/users","/clients"]}`)
+			fmt.Fprintf(w, `{"message":"API v1","endpoints":["/healthz","/metrics","/auth/login","/auth/refresh","/users","/clients","/warehouses"]}`)
 		})
 
 		// Metrics endpoint
@@ -200,6 +200,34 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 					r.Delete("/{id}", clientObjectHandler.DeleteClientObject)
 					r.Post("/{id}/restore", clientObjectHandler.RestoreClientObject)
 				})
+			})
+		})
+
+		// Protected warehouse management endpoints
+		r.Route("/warehouses", func(r chi.Router) {
+			// Create warehouse handler and middleware
+			warehouseRepo := pg.NewWarehouseRepository(db.GetPool())
+			warehouseService := service.NewWarehouseService(warehouseRepo)
+			warehouseHandler := httpmiddleware.NewWarehouseHandler(warehouseService)
+			warehouseJWTManager := auth.NewDefaultJWTManager(cfg.Auth.JWTSecret)
+			authMiddleware := httpmiddleware.NewAuthMiddleware(warehouseJWTManager)
+			rbacMiddleware := httpmiddleware.NewRBACMiddleware()
+
+			// Require authentication for all warehouse endpoints
+			r.Use(authMiddleware.RequireAuth)
+
+			// Read endpoints - accessible by all authenticated users
+			r.With(rbacMiddleware.RequireReadAccess).Group(func(r chi.Router) {
+				r.Get("/", warehouseHandler.ListWarehouses)
+				r.Get("/{id}", warehouseHandler.GetWarehouse)
+			})
+
+			// Write endpoints - ADMIN and DISPATCHER only
+			r.With(rbacMiddleware.RequireWriteAccess).Group(func(r chi.Router) {
+				r.Post("/", warehouseHandler.CreateWarehouse)
+				r.Put("/{id}", warehouseHandler.UpdateWarehouse)
+				r.Delete("/{id}", warehouseHandler.DeleteWarehouse)
+				r.Post("/{id}/restore", warehouseHandler.RestoreWarehouse)
 			})
 		})
 	})
