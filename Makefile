@@ -156,20 +156,20 @@ db-reset: db-drop db-create migrate-up ## Reset database
 test-db: ## Create PostgreSQL test database using Docker
 	@echo "Creating PostgreSQL test database..."
 	@if [ "$(shell docker ps -q -f name=eco-van-test-db)" ]; then \
-		echo "Test database container already running, reinitializing..."; \
-		make test-db-stop; \
+		echo "Test database container already running"; \
+	else \
+		docker run --name eco-van-test-db \
+			-e POSTGRES_DB=waste_test \
+			-e POSTGRES_USER=app \
+			-e POSTGRES_PASSWORD=app \
+			-p 5433:5432 \
+			-d postgres:16-alpine; \
+		echo "Waiting for database to be ready..."; \
+		sleep 5; \
+		echo "Applying comprehensive schema to test database..."; \
+		psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/001_initial_schema.sql; \
+		echo "Test database created and migrated at postgres://app:app@localhost:5433/waste_test?sslmode=disable"; \
 	fi
-	docker run --name eco-van-test-db \
-		-e POSTGRES_DB=waste_test \
-		-e POSTGRES_USER=app \
-		-e POSTGRES_PASSWORD=app \
-		-p 5433:5432 \
-		-d postgres:16-alpine
-	@echo "Waiting for database to be ready..."
-	@sleep 5
-	@echo "Applying comprehensive schema to test database..."
-	@psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/001_initial_schema.sql
-	@echo "Test database created and migrated at postgres://app:app@localhost:5433/waste_test?sslmode=disable"
 
 test-db-stop: ## Stop and remove test database container
 	@echo "Stopping test database container..."
@@ -181,6 +181,39 @@ test-db-stop: ## Stop and remove test database container
 	fi
 
 test-db-reset: test-db-stop test-db ## Reset test database container
+
+test-db-clean: ## Clean test data (truncate all tables, keep database running)
+	@echo "Cleaning test data..."
+	@if [ "$(shell docker ps -q -f name=eco-van-test-db)" ]; then \
+		psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -c "TRUNCATE TABLE photos, orders, transport, equipment, drivers, client_objects, clients, warehouses CASCADE;" || echo "Warning: Could not clean all tables"; \
+		echo "✅ Test data cleaned"; \
+	else \
+		echo "❌ Test database is not running"; \
+		echo "   Run 'make test-db' to start it"; \
+	fi
+
+test-db-status: ## Check test database status
+	@if [ "$(shell docker ps -q -f name=eco-van-test-db)" ]; then \
+		echo "✅ Test database is running"; \
+		echo "   Container: eco-van-test-db"; \
+		echo "   Port: 5433"; \
+		echo "   Database: waste_test"; \
+	else \
+		echo "❌ Test database is not running"; \
+		echo "   Run 'make test-db' to start it"; \
+	fi
+
+# Run integration tests without recreating database
+test-integration-only: ## Run integration tests (assumes database is already running)
+	@echo "Running integration tests..."
+	@if [ -f .env.test ]; then \
+		echo "Loading test environment from .env.test file..."; \
+		export $$(cat .env.test | grep -v '^#' | xargs); \
+		go test -tags=integration -v ./...; \
+	else \
+		echo "Warning: .env.test file not found. Using default test environment variables."; \
+		go test -tags=integration -v ./...; \
+	fi
 
 # Local development database (for frontend testing)
 db: ## Create PostgreSQL database for local development using Docker

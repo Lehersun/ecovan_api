@@ -75,12 +75,12 @@ func TestClientsRepository_CompleteWorkflow(t *testing.T) {
 		// Verify all records exist and are linked correctly
 		var orderClientID, orderObjectID uuid.UUID
 		var status string
-		query := `SELECT client_id, client_object_id, status FROM orders WHERE id = $1`
+		query := `SELECT client_id, object_id, status FROM orders WHERE id = $1`
 		err := tx.QueryRow(ctx, query, orderID).Scan(&orderClientID, &orderObjectID, &status)
 		require.NoError(t, err)
 
 		assert.Equal(t, clientID, orderClientID)
 		assert.Equal(t, objectID, orderObjectID)
-		assert.Equal(t, "pending", status)
+		assert.Equal(t, "DRAFT", status)
 	})
 }
