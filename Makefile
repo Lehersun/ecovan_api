@@ -73,13 +73,13 @@ run: db ## Run the application (depends on database)
 
 # Run migrations up
 migrate-up: ## Run database migrations up
-	@echo "Running migrations up..."
-	$(GOPATH)/bin/migrate -path db/migrations -database "postgres://localhost:5432/eco_van_db?sslmode=disable" up
+	@echo "Running comprehensive schema..."
+	@psql "postgres://localhost:5432/eco_van_db?sslmode=disable" -f migrations/001_initial_schema.sql
 
 # Run migrations down
 migrate-down: ## Run database migrations down
-	@echo "Running migrations down..."
-	$(GOPATH)/bin/migrate -path db/migrations -database "postgres://localhost:5432/eco_van_db?sslmode=disable" down
+	@echo "Dropping all tables (schema reset)..."
+	@psql "postgres://localhost:5432/eco_van_db?sslmode=disable" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
 # Generate code (sqlc, mocks, etc.)
 gen: ## Generate code using sqlc and mockery
@@ -103,10 +103,6 @@ env-setup: ## Setup environment files (.env and .env.test)
 # Development setup
 dev-setup: tools gen env-setup ## Setup development environment
 	@echo "Development environment setup completed"
-
-# Pre-commit checks
-pre-commit: lint test ## Run pre-commit checks
-	@echo "Pre-commit checks completed successfully"
 
 # Install dependencies
 deps: ## Install Go dependencies
@@ -171,10 +167,8 @@ test-db: ## Create PostgreSQL test database using Docker
 		-d postgres:16-alpine
 	@echo "Waiting for database to be ready..."
 	@sleep 5
-	@echo "Applying migrations to test database..."
-	@psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/0001_init.sql
-	@psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/0002_create_tables.sql
-	@psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/0002_users.sql
+	@echo "Applying comprehensive schema to test database..."
+	@psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/001_initial_schema.sql
 	@echo "Test database created and migrated at postgres://app:app@localhost:5433/waste_test?sslmode=disable"
 
 test-db-stop: ## Stop and remove test database container
@@ -202,10 +196,8 @@ db: ## Create PostgreSQL database for local development using Docker
 			-d postgres:16-alpine; \
 		echo "Waiting for database to be ready..."; \
 		sleep 5; \
-		echo "Applying migrations to development database..."; \
-		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f migrations/0001_init.sql; \
-		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f migrations/0002_create_tables.sql; \
-		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f migrations/0002_users.sql; \
+		echo "Applying comprehensive schema to development database..."; \
+		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f migrations/001_initial_schema.sql; \
 		echo "Development database created and migrated at postgres://app:app@localhost:5432/eco_van_db?sslmode=disable"; \
 	fi
 
