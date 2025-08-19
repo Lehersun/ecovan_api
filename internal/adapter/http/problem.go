@@ -164,3 +164,19 @@ func WriteInternalError(w http.ResponseWriter, detail string) {
 func WriteServiceUnavailable(w http.ResponseWriter, detail string) {
 	WriteProblemWithDetail(w, http.StatusServiceUnavailable, detail)
 }
+
+// WriteJSON writes a JSON response with the given status code and data
+func WriteJSON(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// Fallback to a simple error if JSON encoding fails
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
+}
+
+// ParseJSON parses JSON from the request body into the given struct
+func ParseJSON(r *http.Request, v interface{}) error {
+	return json.NewDecoder(r.Body).Decode(v)
+}

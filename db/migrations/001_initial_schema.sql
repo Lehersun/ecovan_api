@@ -6,6 +6,25 @@ CREATE EXTENSION IF NOT EXISTS citext;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- =========================================
+-- Users (Authentication & Authorization)
+-- =========================================
+CREATE TABLE IF NOT EXISTS users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email         CITEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  role          TEXT NOT NULL CHECK (role IN ('ADMIN','DISPATCHER','DRIVER','VIEWER')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at    TIMESTAMPTZ
+);
+
+-- Unique email among non-deleted users
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_users_email_not_deleted
+  ON users(email) WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role) WHERE deleted_at IS NULL;
+
+-- =========================================
 -- Clients
 -- =========================================
 CREATE TABLE IF NOT EXISTS clients (
@@ -212,6 +231,11 @@ $$ LANGUAGE plpgsql;
 
 DO $$
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_users_updated_at') THEN
+    CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_clients_updated_at') THEN
     CREATE TRIGGER trg_clients_updated_at BEFORE UPDATE ON clients
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

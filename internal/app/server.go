@@ -106,7 +106,7 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `{"message":"API v1","endpoints":["/healthz","/metrics","/auth/login","/auth/refresh"]}`)
+			fmt.Fprintf(w, `{"message":"API v1","endpoints":["/healthz","/metrics","/auth/login","/auth/refresh","/users","/clients"]}`)
 		})
 
 		// Metrics endpoint
@@ -150,6 +150,44 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 			r.With(rbacMiddleware.RequireWriteAccess).Group(func(r chi.Router) {
 				r.Post("/", authHandler.CreateUser)
 				r.Delete("/{id}", authHandler.DeleteUser)
+			})
+		})
+
+		// Protected client management endpoints
+		r.Route("/clients", func(r chi.Router) {
+			// Debug: Log that we're setting up client routes
+			fmt.Println("Setting up client routes...")
+
+			// Create client handler and middleware
+			clientRepo := pg.NewClientRepository(db.GetPool())
+			clientService := service.NewClientService(clientRepo)
+			clientHandler := httpmiddleware.NewClientHandler(clientService)
+			clientJWTManager := auth.NewDefaultJWTManager(cfg.Auth.JWTSecret)
+			authMiddleware := httpmiddleware.NewAuthMiddleware(clientJWTManager)
+			rbacMiddleware := httpmiddleware.NewRBACMiddleware()
+
+			// Require authentication for all client endpoints
+			r.Use(authMiddleware.RequireAuth)
+
+			// Debug: Add a simple test endpoint (after middleware)
+			r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprintf(w, `{"message":"Client test endpoint working"}`)
+			})
+
+			// Read endpoints - accessible by all authenticated users
+			r.With(rbacMiddleware.RequireReadAccess).Group(func(r chi.Router) {
+				r.Get("/", clientHandler.ListClients)
+				r.Get("/{id}", clientHandler.GetClient)
+			})
+
+			// Write endpoints - ADMIN and DISPATCHER only
+			r.With(rbacMiddleware.RequireWriteAccess).Group(func(r chi.Router) {
+				r.Post("/", clientHandler.CreateClient)
+				r.Put("/{id}", clientHandler.UpdateClient)
+				r.Delete("/{id}", clientHandler.DeleteClient)
+				r.Post("/{id}/restore", clientHandler.RestoreClient)
 			})
 		})
 	})
