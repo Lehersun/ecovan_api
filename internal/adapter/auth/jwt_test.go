@@ -9,8 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	testSecretKey = "test-secret-key"
+	testEmail     = "test@example.com"
+)
+
 func TestNewJWTManager(t *testing.T) {
-	secretKey := "test-secret-key"
+	secretKey := testSecretKey
 	accessTTL := 15 * time.Minute
 	refreshTTL := 30 * 24 * time.Hour
 
@@ -30,7 +35,7 @@ func TestNewJWTManager(t *testing.T) {
 }
 
 func TestNewDefaultJWTManager(t *testing.T) {
-	secretKey := "test-secret-key"
+	secretKey := testSecretKey
 	manager := NewDefaultJWTManager(secretKey)
 
 	if manager == nil {
@@ -47,12 +52,12 @@ func TestNewDefaultJWTManager(t *testing.T) {
 }
 
 func TestGenerateAccessToken(t *testing.T) {
-	secretKey := "test-secret-key"
+	secretKey := testSecretKey
 	manager := NewDefaultJWTManager(secretKey)
 
 	user := &models.User{
 		ID:    uuid.New(),
-		Email: "test@example.com",
+		Email: testEmail,
 		Role:  models.UserRoleAdmin,
 	}
 
@@ -85,12 +90,12 @@ func TestGenerateAccessToken(t *testing.T) {
 }
 
 func TestGenerateRefreshToken(t *testing.T) {
-	secretKey := "test-secret-key"
+	secretKey := testSecretKey
 	manager := NewDefaultJWTManager(secretKey)
 
 	user := &models.User{
 		ID:    uuid.New(),
-		Email: "test@example.com",
+		Email: testEmail,
 		Role:  models.UserRoleAdmin,
 	}
 
@@ -123,7 +128,7 @@ func TestGenerateRefreshToken(t *testing.T) {
 }
 
 func TestValidateToken_InvalidToken(t *testing.T) {
-	secretKey := "test-secret-key"
+	secretKey := testSecretKey
 	manager := NewDefaultJWTManager(secretKey)
 
 	// Test with invalid token
@@ -158,7 +163,7 @@ func TestValidateToken_WrongSecret(t *testing.T) {
 }
 
 func TestValidateAccessToken_RefreshToken(t *testing.T) {
-	secretKey := "test-secret-key"
+	secretKey := testSecretKey
 	manager := NewDefaultJWTManager(secretKey)
 
 	user := &models.User{
@@ -181,7 +186,7 @@ func TestValidateAccessToken_RefreshToken(t *testing.T) {
 }
 
 func TestValidateRefreshToken_AccessToken(t *testing.T) {
-	secretKey := "test-secret-key"
+	secretKey := testSecretKey
 	manager := NewDefaultJWTManager(secretKey)
 
 	user := &models.User{
@@ -204,7 +209,7 @@ func TestValidateRefreshToken_AccessToken(t *testing.T) {
 }
 
 func TestGetTokenExpiration(t *testing.T) {
-	secretKey := "test-secret-key"
+	secretKey := testSecretKey
 	manager := NewDefaultJWTManager(secretKey)
 
 	accessTTL := manager.GetTokenExpiration(TokenTypeAccess)

@@ -5,8 +5,10 @@ import (
 	"testing"
 )
 
+const testPassword = "testpassword123"
+
 func TestHashPassword(t *testing.T) {
-	password := "testpassword123"
+	password := testPassword
 
 	hash, err := HashPassword(password)
 	if err != nil {
@@ -30,7 +32,7 @@ func TestHashPassword(t *testing.T) {
 }
 
 func TestVerifyPassword(t *testing.T) {
-	password := "testpassword123"
+	password := testPassword
 
 	// Hash the password
 	hash, err := HashPassword(password)
@@ -60,7 +62,7 @@ func TestVerifyPassword(t *testing.T) {
 }
 
 func TestVerifyPassword_InvalidHash(t *testing.T) {
-	password := "testpassword123"
+	password := testPassword
 	invalidHash := "invalid-hash-format"
 
 	// Verify with invalid hash format
@@ -102,7 +104,7 @@ func TestIsValidPassword(t *testing.T) {
 }
 
 func TestPasswordHashUniqueness(t *testing.T) {
-	password := "testpassword123"
+	password := testPassword
 
 	// Hash the same password multiple times
 	hash1, err := HashPassword(password)

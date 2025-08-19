@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -94,7 +95,7 @@ func testReadAccess(t *testing.T, user *models.User) {
 	t.Helper()
 
 	// Test GET /api/v1/users
-	req := httptest.NewRequest("GET", "/api/v1/users", nil)
+	req := httptest.NewRequest("GET", "/api/v1/users", http.NoBody)
 
 	// Mock the context with user role
 	ctx := context.WithValue(req.Context(), "user_role", user.Role)

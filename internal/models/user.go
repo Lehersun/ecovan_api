@@ -70,7 +70,12 @@ func (r UserRole) String() string {
 }
 
 // Email validation regex - strict validation
-var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$`)
+var emailRegex = regexp.MustCompile(
+	`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?` +
+		`(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$`,
+)
+
+const minPasswordLength = 8
 
 // ValidateCreateUserRequest validates the create user request
 func (req *CreateUserRequest) Validate() error {
@@ -87,7 +92,7 @@ func (req *CreateUserRequest) Validate() error {
 		return errors.New("password is required")
 	}
 
-	if len(req.Password) < 8 {
+	if len(req.Password) < minPasswordLength {
 		return errors.New("password must be at least 8 characters long")
 	}
 

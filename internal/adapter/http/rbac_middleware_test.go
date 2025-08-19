@@ -11,7 +11,7 @@ import (
 
 func TestRBACMiddleware_RequireAdminRole(t *testing.T) {
 	middleware := NewRBACMiddleware()
-	
+
 	tests := []struct {
 		name           string
 		userRole       models.UserRole
@@ -41,17 +41,17 @@ func TestRBACMiddleware_RequireAdminRole(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/test", nil)
-			ctx := context.WithValue(req.Context(), "user_role", tt.userRole)
+			req := httptest.NewRequest("GET", "/test", http.NoBody)
+			ctx := context.WithValue(req.Context(), userRoleKey, tt.userRole)
 			req = req.WithContext(ctx)
-			
+
 			rr := httptest.NewRecorder()
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
-			
+
 			middleware.RequireAdminRole(handler).ServeHTTP(rr, req)
-			
+
 			if rr.Code != tt.expectedStatus {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
 			}
@@ -61,7 +61,7 @@ func TestRBACMiddleware_RequireAdminRole(t *testing.T) {
 
 func TestRBACMiddleware_RequireReadAccess(t *testing.T) {
 	middleware := NewRBACMiddleware()
-	
+
 	tests := []struct {
 		name           string
 		userRole       models.UserRole
@@ -91,17 +91,17 @@ func TestRBACMiddleware_RequireReadAccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/test", nil)
-			ctx := context.WithValue(req.Context(), "user_role", tt.userRole)
+			req := httptest.NewRequest("GET", "/test", http.NoBody)
+			ctx := context.WithValue(req.Context(), userRoleKey, tt.userRole)
 			req = req.WithContext(ctx)
-			
+
 			rr := httptest.NewRecorder()
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
-			
+
 			middleware.RequireReadAccess(handler).ServeHTTP(rr, req)
-			
+
 			if rr.Code != tt.expectedStatus {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
 			}
@@ -111,7 +111,7 @@ func TestRBACMiddleware_RequireReadAccess(t *testing.T) {
 
 func TestRBACMiddleware_RequireWriteAccess(t *testing.T) {
 	middleware := NewRBACMiddleware()
-	
+
 	tests := []struct {
 		name           string
 		userRole       models.UserRole
@@ -141,17 +141,17 @@ func TestRBACMiddleware_RequireWriteAccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("POST", "/test", nil)
-			ctx := context.WithValue(req.Context(), "user_role", tt.userRole)
+			req := httptest.NewRequest("POST", "/test", http.NoBody)
+			ctx := context.WithValue(req.Context(), userRoleKey, tt.userRole)
 			req = req.WithContext(ctx)
-			
+
 			rr := httptest.NewRecorder()
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
-			
+
 			middleware.RequireWriteAccess(handler).ServeHTTP(rr, req)
-			
+
 			if rr.Code != tt.expectedStatus {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
 			}
@@ -161,7 +161,7 @@ func TestRBACMiddleware_RequireWriteAccess(t *testing.T) {
 
 func TestRBACMiddleware_NoRoleInContext(t *testing.T) {
 	middleware := NewRBACMiddleware()
-	
+
 	tests := []struct {
 		name           string
 		middlewareFunc func(http.Handler) http.Handler
@@ -178,14 +178,14 @@ func TestRBACMiddleware_NoRoleInContext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/test", nil)
+			req := httptest.NewRequest("GET", "/test", http.NoBody)
 			rr := httptest.NewRecorder()
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
-			
+
 			tt.middlewareFunc(handler).ServeHTTP(rr, req)
-			
+
 			if rr.Code != http.StatusUnauthorized {
 				t.Errorf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
 			}

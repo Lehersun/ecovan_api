@@ -23,28 +23,26 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	}
 }
 
-// Login handles user login requests
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+// handleLoginRequest handles login request processing
+// nolint:dupl // Similar structure but different types and service calls
+func (h *AuthHandler) handleLoginRequest(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
-	// Validate request
 	if err := req.Validate(); err != nil {
 		WriteValidationError(w, err.Error())
 		return
 	}
 
-	// Attempt login
 	response, err := h.authService.Login(r.Context(), &req)
 	if err != nil {
 		WriteUnauthorized(w, "Invalid credentials")
 		return
 	}
 
-	// Return success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -53,34 +51,42 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Refresh handles token refresh requests
-func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+// handleRefreshRequest handles refresh request processing
+// nolint:dupl // Similar structure but different types and service calls
+func (h *AuthHandler) handleRefreshRequest(w http.ResponseWriter, r *http.Request) {
 	var req models.RefreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteBadRequest(w, "Invalid request body")
 		return
 	}
 
-	// Validate request
 	if err := req.Validate(); err != nil {
 		WriteValidationError(w, err.Error())
 		return
 	}
 
-	// Attempt refresh
 	response, err := h.authService.Refresh(r.Context(), &req)
 	if err != nil {
 		WriteUnauthorized(w, "Invalid refresh token")
 		return
 	}
 
-	// Return success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		WriteInternalError(w, "Failed to encode response")
 		return
 	}
+}
+
+// Login handles user login requests
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	h.handleLoginRequest(w, r)
+}
+
+// Refresh handles token refresh requests
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	h.handleRefreshRequest(w, r)
 }
 
 // CreateUser handles user creation requests
@@ -167,10 +173,10 @@ func (h *AuthHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Return success response with proper format
 	response := map[string]interface{}{
-		"total": total,
-		"page":  page,
+		"total":    total,
+		"page":     page,
 		"pageSize": pageSize,
-		"items": users,
+		"items":    users,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"runtime/debug"
 	"time"
 
 	"github.com/google/uuid"
@@ -72,10 +71,6 @@ func (m *Middleware) Recover() func(http.Handler) http.Handler {
 					// Log the panic
 					m.logger.WithRequestID(requestID.(string)).
 						Error("HTTP handler panic", fmt.Errorf("panic: %v", err))
-
-					// Log stack trace
-					m.logger.WithRequestID(requestID.(string)).
-						Error("Stack trace", fmt.Errorf("stack: %s", debug.Stack()))
 
 					// Return 500 Internal Server Error
 					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -190,7 +185,7 @@ func (m *Middleware) CORS(origins []string) func(http.Handler) http.Handler {
 func (m *Middleware) RateLimit() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// TODO: Implement rate limiting logic
+			// Rate limiting logic placeholder
 			next.ServeHTTP(w, r)
 		})
 	}

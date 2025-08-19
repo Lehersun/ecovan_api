@@ -14,12 +14,20 @@ const (
 	memory     = 64 * 1024 // 64MB
 	threads    = 4
 	keyLen     = 32
+
+	// Security constants
+	saltLength        = 16
+	minPasswordLength = 8
+
+	// Overflow protection constants
+	maxUint8  = 255
+	maxUint32 = 2147483647
 )
 
 // HashPassword creates a salted hash of the password using Argon2id
 func HashPassword(password string) (string, error) {
 	// Generate a random salt
-	salt := make([]byte, 16)
+	salt := make([]byte, saltLength)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("failed to generate salt: %w", err)
 	}
@@ -55,7 +63,16 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 	}
 
 	// Hash the provided password with the same parameters
-	computedHash := argon2.IDKey([]byte(password), salt, t, m, uint8(p), uint32(len(hash)))
+	// Ensure p doesn't overflow uint8
+	if p > maxUint8 {
+		return false, fmt.Errorf("threads parameter too large")
+	}
+	// Ensure hash length doesn't overflow uint32
+	hashLen := len(hash)
+	if hashLen > maxUint32 {
+		return false, fmt.Errorf("hash length too large")
+	}
+	computedHash := argon2.IDKey([]byte(password), salt, t, m, uint8(p), uint32(hashLen))
 
 	// Compare the computed hash with the stored hash
 	// Use constant-time comparison to prevent timing attacks
@@ -64,8 +81,8 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 
 // IsValidPassword checks if a password meets security requirements
 func IsValidPassword(password string) error {
-	if len(password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters long")
+	if len(password) < minPasswordLength {
+		return fmt.Errorf("password must be at least %d characters long", minPasswordLength)
 	}
 
 	// Add more password strength requirements as needed

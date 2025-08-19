@@ -190,7 +190,9 @@ func TestServer_ReadyzEndpoint(t *testing.T) {
 	// Shutdown server
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	server.Shutdown(ctx)
+	if err := server.Shutdown(ctx); err != nil {
+		t.Logf("Server shutdown error (expected in test): %v", err)
+	}
 }
 
 func TestServer_ReadyzEndpoint_DatabaseDown(t *testing.T) {
@@ -244,5 +246,7 @@ func TestServer_ReadyzEndpoint_DatabaseDown(t *testing.T) {
 	// Shutdown server
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	server.Shutdown(ctx)
+	if err := server.Shutdown(ctx); err != nil {
+		t.Logf("Server shutdown error (expected in test): %v", err)
+	}
 }

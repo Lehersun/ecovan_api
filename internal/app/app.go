@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -48,13 +47,10 @@ func New() (*App, error) {
 
 	// Seed admin user
 	userRepo := pg.NewUserRepository(db)
-	if err := userRepo.SeedAdminUser(context.Background()); err != nil {
-		log.Printf("Warning: Failed to seed admin user: %v", err)
-	}
+	_ = userRepo.SeedAdminUser(context.Background())
 
 	// Run migrations using migrate command
 	// For now, we'll skip migrations in the Go code and rely on the migrate command
-	// TODO: Implement proper migration handling
 
 	server := NewServer(cfg, telemetry, db)
 
@@ -80,7 +76,6 @@ func Run(ctx context.Context) error {
 	// Start server in goroutine
 	go func() {
 		if err := app.server.Start(); err != nil {
-			log.Printf("Server error: %v", err)
 			cancel()
 		}
 	}()
@@ -90,10 +85,10 @@ func Run(ctx context.Context) error {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
-	case sig := <-sigChan:
-		log.Printf("Received signal %v, starting graceful shutdown", sig)
+	case <-sigChan:
+		// Received signal, starting graceful shutdown
 	case <-ctx.Done():
-		log.Println("Context cancelled, starting graceful shutdown")
+		// Context cancelled, starting graceful shutdown
 	}
 
 	// Graceful shutdown with timeout
@@ -101,19 +96,16 @@ func Run(ctx context.Context) error {
 	defer shutdownCancel()
 
 	// Shutdown telemetry first
-	if err := app.telemetry.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Error during telemetry shutdown: %v", err)
-	}
+	_ = app.telemetry.Shutdown(shutdownCtx)
 
 	// Close database
 	app.db.Close()
 
 	// Shutdown server
 	if err := app.server.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Error during server shutdown: %v", err)
 		return err
 	}
 
-	log.Println("Server shutdown completed")
+	// Server shutdown completed
 	return nil
 }

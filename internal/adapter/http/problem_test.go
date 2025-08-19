@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+const customErrorDetail = "Custom error detail"
+
 func TestProblem_Serialization(t *testing.T) {
 	problem := Problem{
 		Type:     "/errors/test",
@@ -123,7 +125,7 @@ func TestCommonProblems_StatusCodes(t *testing.T) {
 
 func TestWriteProblemWithDetail(t *testing.T) {
 	recorder := httptest.NewRecorder()
-	detail := "Custom error detail"
+	detail := customErrorDetail
 
 	WriteProblemWithDetail(recorder, http.StatusNotFound, detail)
 
@@ -144,7 +146,7 @@ func TestWriteProblemWithDetail(t *testing.T) {
 func TestWriteProblemWithType(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	customType := "/errors/custom"
-	detail := "Custom error detail"
+	detail := customErrorDetail
 
 	WriteProblemWithType(recorder, http.StatusBadRequest, customType, detail)
 
@@ -170,7 +172,7 @@ func TestWriteCustomProblem(t *testing.T) {
 	customType := "/errors/custom"
 	title := "Custom Title"
 	status := 499
-	detail := "Custom error detail"
+	detail := customErrorDetail
 	instance := "/custom/endpoint"
 
 	WriteCustomProblem(recorder, customType, title, status, detail, instance)
@@ -220,7 +222,7 @@ func TestHelperFunctions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			detail := "Test detail"
+			detail := customErrorDetail
 
 			tc.helper(recorder, detail)
 

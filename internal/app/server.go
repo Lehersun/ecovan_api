@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 
 	"eco-van-api/internal/adapter/auth"
@@ -170,12 +169,10 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 
 // Start starts the HTTP server
 func (s *Server) Start() error {
-	log.Printf("Starting server on %s", s.config.HTTP.Addr)
 	return s.server.ListenAndServe()
 }
 
 // Shutdown gracefully shuts down the server
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Println("Shutting down server...")
 	return s.server.Shutdown(ctx)
 }

@@ -37,11 +37,11 @@ func (r *UserRepository) SeedAdminUser(ctx context.Context) error {
 	}
 
 	// Create admin user
-	adminUser, err := r.Create(ctx, "admin@example.com", passwordHash, models.UserRoleAdmin.String())
+	_, err = r.Create(ctx, "admin@example.com", passwordHash, models.UserRoleAdmin.String())
 	if err != nil {
 		return fmt.Errorf("failed to create admin user: %w", err)
 	}
 
-	fmt.Printf("Admin user created: %s (ID: %s)\n", adminUser.Email, adminUser.ID)
+	// Admin user created successfully
 	return nil
 }

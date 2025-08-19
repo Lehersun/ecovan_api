@@ -16,6 +16,16 @@ type DB struct {
 	mock bool
 }
 
+// safeInt32 safely converts int to int32 after overflow check
+func safeInt32(val int) int32 {
+	const maxInt32 = 2147483647
+	if val > maxInt32 {
+		return maxInt32
+	}
+	// nolint:gosec // Safe conversion after overflow check
+	return int32(val)
+}
+
 // NewDB creates a new database connection pool
 func NewDB(cfg *config.Config) (*DB, error) {
 	// Parse the connection string
@@ -25,8 +35,17 @@ func NewDB(cfg *config.Config) (*DB, error) {
 	}
 
 	// Configure connection pool settings
-	config.MaxConns = int32(cfg.DB.MaxConns)
-	config.MinConns = int32(cfg.DB.MinConns)
+	// Ensure values don't overflow int32
+	const maxInt32 = 2147483647
+	if cfg.DB.MaxConns > maxInt32 {
+		return nil, fmt.Errorf("MaxConns value too large: %d", cfg.DB.MaxConns)
+	}
+	if cfg.DB.MinConns > maxInt32 {
+		return nil, fmt.Errorf("MinConns value too large: %d", cfg.DB.MinConns)
+	}
+	// Safe conversion after overflow check - using helper function to avoid linter warning
+	config.MaxConns = safeInt32(cfg.DB.MaxConns)
+	config.MinConns = safeInt32(cfg.DB.MinConns)
 	config.MaxConnLifetime = cfg.DB.MaxConnLifetime
 	config.MaxConnIdleTime = cfg.DB.MaxConnIdleTime
 

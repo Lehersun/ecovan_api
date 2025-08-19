@@ -46,13 +46,11 @@ func TestMain(m *testing.M) {
 	var migrationErr error
 	for i := 0; i < 3; i++ {
 		if i > 0 {
-			log.Printf("Retrying migration attempt %d...", i+1)
 			time.Sleep(2 * time.Second)
 		}
 		if migrationErr = applyMigrations(dsn); migrationErr == nil {
 			break
 		}
-		log.Printf("Migration attempt %d failed: %v", i+1, migrationErr)
 	}
 	if migrationErr != nil {
 		log.Fatalf("Failed to apply migrations after retries: %v", migrationErr)
@@ -74,7 +72,6 @@ func TestMain(m *testing.M) {
 func applyMigrations(dsn string) error {
 	// For now, let's skip migrations in tests and just create the basic schema
 	// This avoids the complex migration setup issues
-	log.Println("Skipping migrations, creating basic schema directly")
 
 	// Create a temporary connection to run schema creation
 	ctx := context.Background()
@@ -157,7 +154,7 @@ func applyMigrations(dsn string) error {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	log.Println("Basic schema created successfully")
+	// Basic schema created successfully
 	return nil
 }
 
