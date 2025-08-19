@@ -110,6 +110,11 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 			fmt.Fprintf(w, `{"message":"API v1","endpoints":["/healthz","/metrics","/auth/login","/auth/refresh"]}`)
 		})
 
+		// Metrics endpoint
+		if telemetry.IsMetricsEnabled() {
+			r.Get("/metrics", telemetry.Metrics.GetHandler().ServeHTTP)
+		}
+
 		// Authentication routes
 		r.Route("/auth", func(r chi.Router) {
 			// Create auth handler

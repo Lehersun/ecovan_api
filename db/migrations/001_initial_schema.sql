@@ -26,6 +26,8 @@ CREATE TABLE client_objects (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+
+
 -- Equipment table
 CREATE TABLE equipment (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
