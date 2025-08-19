@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 	log.Println("Waiting for test database to be ready...")
 	var pool *pgxpool.Pool
 	var err error
-	
+
 	// Retry connection with exponential backoff
 	for i := 0; i < 10; i++ {
 		pool, err = pgxpool.New(ctx, dsn)
@@ -38,12 +38,12 @@ func TestMain(m *testing.M) {
 			}
 			pool.Close()
 		}
-		
+
 		if i < 9 {
 			time.Sleep(time.Duration(i+1) * time.Second)
 		}
 	}
-	
+
 	if err != nil {
 		log.Fatalf("Failed to connect to test database after retries: %v", err)
 	}
@@ -58,12 +58,12 @@ func TestMain(m *testing.M) {
 
 	// Run tests
 	code := m.Run()
-	
+
 	// Clean up
 	if TestPool != nil {
 		TestPool.Close()
 	}
-	
+
 	os.Exit(code)
 }
 
