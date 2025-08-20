@@ -2,40 +2,23 @@ package port
 
 import (
 	"context"
-
 	"eco-van-api/internal/models"
 
 	"github.com/google/uuid"
 )
 
-// ClientObjectRepository defines the interface for client object data access
+// ClientObjectRepository defines the interface for client object data operations
 type ClientObjectRepository interface {
-	// Create creates a new client object
-	Create(ctx context.Context, clientObject *models.ClientObject) error
+	BaseRepository[models.ClientObject, models.ClientObject, models.ClientObject, models.ClientObjectListRequest, models.ClientObjectListResponse]
 
-	// GetByID retrieves a client object by ID
-	GetByID(ctx context.Context, id uuid.UUID, includeDeleted bool) (*models.ClientObject, error)
+	// ListByClient retrieves client objects for a specific client
+	ListByClient(ctx context.Context, clientID uuid.UUID, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error)
 
-	// List retrieves client objects for a specific client with pagination
-	List(ctx context.Context, clientID uuid.UUID, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error)
-
-	// Update updates an existing client object
-	Update(ctx context.Context, clientObject *models.ClientObject) error
-
-	// SoftDelete soft deletes a client object (guarded)
-	SoftDelete(ctx context.Context, id uuid.UUID) error
-
-	// Restore restores a soft-deleted client object
-	Restore(ctx context.Context, id uuid.UUID) error
+	// ExistsByAddress checks if a client object exists with the given address for a client
+	ExistsByAddress(ctx context.Context, clientID uuid.UUID, address string, excludeID *uuid.UUID) (bool, error)
 
 	// ExistsByName checks if a client object with the given name exists for a client
 	ExistsByName(ctx context.Context, clientID uuid.UUID, name string, excludeID *uuid.UUID) (bool, error)
-
-	// HasActiveOrders checks if there are active orders for this client object
-	HasActiveOrders(ctx context.Context, clientObjectID uuid.UUID) (bool, error)
-
-	// HasActiveEquipment checks if there is active equipment placed at this client object
-	HasActiveEquipment(ctx context.Context, clientObjectID uuid.UUID) (bool, error)
 
 	// GetDeleteConflicts returns detailed information about what prevents deletion
 	GetDeleteConflicts(ctx context.Context, clientObjectID uuid.UUID) (*models.DeleteConflicts, error)

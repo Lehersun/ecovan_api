@@ -62,12 +62,12 @@ func (m *MockDriverRepository) ExistsByLicenseNo(ctx context.Context, licenseNo 
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockDriverRepository) ListAvailable(ctx context.Context, req models.DriverListRequest) (*models.DriverListResponse, error) {
-	args := m.Called(ctx, req)
+func (m *MockDriverRepository) ListAvailable(ctx context.Context) ([]models.Driver, error) {
+	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.DriverListResponse), args.Error(1)
+	return args.Get(0).([]models.Driver), args.Error(1)
 }
 
 func TestDriverService_Create(t *testing.T) {

@@ -159,10 +159,21 @@ func (s *driverService) Restore(ctx context.Context, id uuid.UUID) (*models.Driv
 
 // ListAvailable retrieves available drivers (not assigned to any transport)
 func (s *driverService) ListAvailable(ctx context.Context, req models.DriverListRequest) (*models.DriverListResponse, error) {
-	response, err := s.driverRepo.ListAvailable(ctx, req)
+	drivers, err := s.driverRepo.ListAvailable(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list available drivers: %w", err)
 	}
 
-	return response, nil
+	// Convert to response format
+	var items []models.DriverResponse
+	for _, driver := range drivers {
+		items = append(items, driver.ToResponse())
+	}
+
+	return &models.DriverListResponse{
+		Items:    items,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+		Total:    int64(len(items)),
+	}, nil
 }

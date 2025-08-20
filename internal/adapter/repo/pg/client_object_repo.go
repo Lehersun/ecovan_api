@@ -14,12 +14,16 @@ import (
 )
 
 type clientObjectRepository struct {
+	*BaseRepository
 	pool *pgxpool.Pool
 }
 
 // NewClientObjectRepository creates a new PostgreSQL client object repository
 func NewClientObjectRepository(pool *pgxpool.Pool) port.ClientObjectRepository {
-	return &clientObjectRepository{pool: pool}
+	return &clientObjectRepository{
+		BaseRepository: NewBaseRepository(pool),
+		pool:           pool,
+	}
 }
 
 // Create creates a new client object
@@ -75,94 +79,6 @@ func (r *clientObjectRepository) GetByID(ctx context.Context, id uuid.UUID, incl
 	}
 
 	return &clientObject, nil
-}
-
-// List retrieves client objects for a specific client with pagination
-func (r *clientObjectRepository) List(ctx context.Context, clientID uuid.UUID, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error) {
-	// Set defaults
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 {
-		req.PageSize = 20
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
-
-	// Build base query
-	baseQuery := `
-		FROM client_objects
-		WHERE client_id = $1
-	`
-	args := []interface{}{clientID}
-
-	// Add soft-delete filter
-	if !req.IncludeDeleted {
-		baseQuery += " AND deleted_at IS NULL"
-	}
-
-	// Count total records
-	countQuery := "SELECT COUNT(*) " + baseQuery
-	var total int64
-	err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the main query with pagination
-	limitParamNum := len(args) + 1
-	offsetParamNum := len(args) + 2
-	mainQuery := `
-		SELECT id, client_id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at
-		` + baseQuery + `
-		ORDER BY name
-		LIMIT $` + fmt.Sprintf("%d", limitParamNum) + `
-		OFFSET $` + fmt.Sprintf("%d", offsetParamNum) + `
-	`
-
-	// Calculate pagination
-	offset := (req.Page - 1) * req.PageSize
-	args = append(args, req.PageSize, offset)
-
-	// Execute main query
-	rows, err := r.pool.Query(ctx, mainQuery, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var items []models.ClientObjectResponse
-	for rows.Next() {
-		var clientObject models.ClientObject
-		err := rows.Scan(
-			&clientObject.ID,
-			&clientObject.ClientID,
-			&clientObject.Name,
-			&clientObject.Address,
-			&clientObject.GeoLat,
-			&clientObject.GeoLng,
-			&clientObject.Notes,
-			&clientObject.CreatedAt,
-			&clientObject.UpdatedAt,
-			&clientObject.DeletedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, clientObject.ToResponse())
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return &models.ClientObjectListResponse{
-		Items:    items,
-		Page:     req.Page,
-		PageSize: req.PageSize,
-		Total:    total,
-	}, nil
 }
 
 // Update updates an existing client object
@@ -223,21 +139,7 @@ func (r *clientObjectRepository) SoftDelete(ctx context.Context, id uuid.UUID) e
 
 // Restore restores a soft-deleted client object
 func (r *clientObjectRepository) Restore(ctx context.Context, id uuid.UUID) error {
-	query := `
-		UPDATE client_objects
-		SET deleted_at = NULL, updated_at = now()
-		WHERE id = $1 AND deleted_at IS NOT NULL
-	`
-	result, err := r.pool.Exec(ctx, query, id)
-	if err != nil {
-		return err
-	}
-
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("client object not found or not deleted")
-	}
-
-	return nil
+	return r.RestoreGeneric(ctx, "client_objects", id)
 }
 
 // ExistsByName checks if a client object with the given name exists for a client
@@ -354,4 +256,167 @@ func (r *clientObjectRepository) GetDeleteConflicts(ctx context.Context, clientO
 	conflicts.Message = "Cannot delete client object: " + strings.Join(messages, ", ")
 
 	return conflicts, nil
+}
+
+// List retrieves client objects with pagination and filtering (base repository interface)
+func (r *clientObjectRepository) List(ctx context.Context, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error) {
+	// This is a simplified version that doesn't filter by client_id
+	// For client-specific listing, use ListByClient method
+	query := `
+		SELECT id, client_id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at
+		FROM client_objects
+		WHERE 1=1
+	`
+	args := []interface{}{}
+
+	if !req.IncludeDeleted {
+		query += " AND deleted_at IS NULL"
+	}
+
+	query += " ORDER BY created_at DESC LIMIT $1 OFFSET $2"
+	limit := req.PageSize
+	offset := (req.Page - 1) * req.PageSize
+	args = append(args, limit, offset)
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list client objects: %w", err)
+	}
+	defer rows.Close()
+
+	var items []models.ClientObjectResponse
+	for rows.Next() {
+		var co models.ClientObject
+		err := rows.Scan(
+			&co.ID, &co.ClientID, &co.Name, &co.Address, &co.GeoLat, &co.GeoLng,
+			&co.Notes, &co.CreatedAt, &co.UpdatedAt, &co.DeletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan client object: %w", err)
+		}
+		items = append(items, co.ToResponse())
+	}
+
+	// Count total
+	countQuery := "SELECT COUNT(*) FROM client_objects WHERE 1=1"
+	if !req.IncludeDeleted {
+		countQuery += " AND deleted_at IS NULL"
+	}
+	var total int64
+	err = r.pool.QueryRow(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count client objects: %w", err)
+	}
+
+	return &models.ClientObjectListResponse{
+		Items:    items,
+		Total:    total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}, nil
+}
+
+// ListByClient retrieves client objects for a specific client with pagination
+func (r *clientObjectRepository) ListByClient(ctx context.Context, clientID uuid.UUID, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error) {
+	// This is the original List method renamed
+	// Set defaults
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize < 1 {
+		req.PageSize = 20
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100
+	}
+
+	// Build base query
+	baseQuery := `
+		FROM client_objects
+		WHERE client_id = $1
+	`
+	args := []interface{}{clientID}
+
+	// Add soft-delete filter
+	if !req.IncludeDeleted {
+		baseQuery += " AND deleted_at IS NULL"
+	}
+
+	// Count total
+	countQuery := fmt.Sprintf("SELECT COUNT(*) %s", baseQuery)
+	var total int64
+	err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count client objects: %w", err)
+	}
+
+	// Build SELECT query
+	offset := (req.Page - 1) * req.PageSize
+	selectQuery := fmt.Sprintf(`
+		SELECT id, client_id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at
+		%s
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, baseQuery)
+
+	args = append(args, req.PageSize, offset)
+
+	rows, err := r.pool.Query(ctx, selectQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query client objects: %w", err)
+	}
+	defer rows.Close()
+
+	var items []models.ClientObjectResponse
+	for rows.Next() {
+		var co models.ClientObject
+		err := rows.Scan(
+			&co.ID,
+			&co.ClientID,
+			&co.Name,
+			&co.Address,
+			&co.GeoLat,
+			&co.GeoLng,
+			&co.Notes,
+			&co.CreatedAt,
+			&co.UpdatedAt,
+			&co.DeletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan client object: %w", err)
+		}
+		items = append(items, co.ToResponse())
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over client objects: %w", err)
+	}
+
+	return &models.ClientObjectListResponse{
+		Items:    items,
+		Total:    total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}, nil
+}
+
+// ExistsByAddress checks if a client object exists with the given address for a client
+func (r *clientObjectRepository) ExistsByAddress(ctx context.Context, clientID uuid.UUID, address string, excludeID *uuid.UUID) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM client_objects WHERE client_id = $1 AND address = $2 AND deleted_at IS NULL`
+	args := []interface{}{clientID, address}
+	argIndex := 3
+
+	if excludeID != nil {
+		query += fmt.Sprintf(" AND id != $%d", argIndex)
+		args = append(args, *excludeID)
+	}
+	query += ")"
+
+	var exists bool
+	err := r.pool.QueryRow(ctx, query, args...).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check client object address existence: %w", err)
+	}
+
+	return exists, nil
 }

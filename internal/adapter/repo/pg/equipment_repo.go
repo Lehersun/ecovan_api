@@ -3,7 +3,7 @@ package pg
 import (
 	"context"
 	"fmt"
-	"strings"
+	"time"
 
 	"eco-van-api/internal/models"
 	"eco-van-api/internal/port"
@@ -15,12 +15,16 @@ import (
 
 // equipmentRepository implements port.EquipmentRepository
 type equipmentRepository struct {
+	*BaseRepository
 	pool *pgxpool.Pool
 }
 
 // NewEquipmentRepository creates a new equipment repository
 func NewEquipmentRepository(pool *pgxpool.Pool) port.EquipmentRepository {
-	return &equipmentRepository{pool: pool}
+	return &equipmentRepository{
+		BaseRepository: NewBaseRepository(pool),
+		pool:           pool,
+	}
 }
 
 // Create creates a new equipment
@@ -29,6 +33,11 @@ func (r *equipmentRepository) Create(ctx context.Context, equipment *models.Equi
 		INSERT INTO equipment (id, number, type, volume_l, condition, photo, client_object_id, warehouse_id, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
+
+	now := time.Now()
+	equipment.ID = uuid.New()
+	equipment.CreatedAt = now
+	equipment.UpdatedAt = now
 
 	_, err := r.pool.Exec(ctx, query,
 		equipment.ID,
@@ -99,14 +108,7 @@ func (r *equipmentRepository) List(ctx context.Context, req models.EquipmentList
 	// Add type filter
 	if req.Type != nil {
 		whereClauses = append(whereClauses, fmt.Sprintf("type = $%d", argIndex))
-		args = append(args, string(*req.Type))
-		argIndex++
-	}
-
-	// Add client object filter
-	if req.ClientObjectID != nil {
-		whereClauses = append(whereClauses, fmt.Sprintf("client_object_id = $%d", argIndex))
-		args = append(args, *req.ClientObjectID)
+		args = append(args, *req.Type)
 		argIndex++
 	}
 
@@ -117,34 +119,37 @@ func (r *equipmentRepository) List(ctx context.Context, req models.EquipmentList
 		argIndex++
 	}
 
-	// Build WHERE clause
-	whereClause := ""
-	if len(whereClauses) > 0 {
-		whereClause = "WHERE " + strings.Join(whereClauses, " AND ")
+	// Add client object filter
+	if req.ClientObjectID != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("client_object_id = $%d", argIndex))
+		args = append(args, *req.ClientObjectID)
+		argIndex++
 	}
 
+	// Build WHERE clause
+	whereClause := r.BuildWhereClause(whereClauses)
+
 	// Count total
-	countQuery := fmt.Sprintf("SELECT COUNT(*) %s %s", baseQuery, whereClause)
-	var total int64
-	err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total)
+	total, err := r.CountTotal(ctx, baseQuery, whereClause, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count equipment: %w", err)
 	}
 
-	// Build SELECT query with pagination
-	selectQuery := fmt.Sprintf(`
+	// Build pagination query
+	query := fmt.Sprintf(`
 		SELECT id, number, type, volume_l, condition, photo, client_object_id, warehouse_id, created_at, updated_at, deleted_at
-		%s %s
+		%s
+		%s
 		ORDER BY created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, baseQuery, whereClause, argIndex, argIndex+1)
 
-	// Add pagination args
+	// Calculate pagination
+	limit := req.PageSize
 	offset := (req.Page - 1) * req.PageSize
-	args = append(args, req.PageSize, offset)
+	args = append(args, limit, offset)
 
-	// Execute query
-	rows, err := r.pool.Query(ctx, selectQuery, args...)
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list equipment: %w", err)
 	}
@@ -172,15 +177,15 @@ func (r *equipmentRepository) List(ctx context.Context, req models.EquipmentList
 		items = append(items, equipment.ToResponse())
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating equipment rows: %w", err)
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over equipment: %w", err)
 	}
 
 	return &models.EquipmentListResponse{
 		Items:    items,
+		Total:    total,
 		Page:     req.Page,
 		PageSize: req.PageSize,
-		Total:    total,
 	}, nil
 }
 
@@ -188,13 +193,13 @@ func (r *equipmentRepository) List(ctx context.Context, req models.EquipmentList
 func (r *equipmentRepository) Update(ctx context.Context, equipment *models.Equipment) error {
 	query := `
 		UPDATE equipment
-		SET number = $2, type = $3, volume_l = $4, condition = $5, photo = $6, 
-		    client_object_id = $7, warehouse_id = $8, updated_at = $9
-		WHERE id = $1
+		SET number = $1, type = $2, volume_l = $3, condition = $4, photo = $5, 
+		    client_object_id = $6, warehouse_id = $7, updated_at = $8
+		WHERE id = $9
 	`
 
-	result, err := r.pool.Exec(ctx, query,
-		equipment.ID,
+	equipment.UpdatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, query,
 		equipment.Number,
 		equipment.Type,
 		equipment.VolumeL,
@@ -203,57 +208,41 @@ func (r *equipmentRepository) Update(ctx context.Context, equipment *models.Equi
 		equipment.ClientObjectID,
 		equipment.WarehouseID,
 		equipment.UpdatedAt,
+		equipment.ID,
 	)
 
-	if err != nil {
-		return fmt.Errorf("failed to update equipment: %w", err)
-	}
-
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("equipment not found")
-	}
-
-	return nil
+	return err
 }
 
 // SoftDelete marks equipment as deleted by setting deleted_at
 func (r *equipmentRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
-	query := `
-		UPDATE equipment
-		SET deleted_at = now(), updated_at = now()
-		WHERE id = $1 AND deleted_at IS NULL
-	`
-
-	result, err := r.pool.Exec(ctx, query, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete equipment: %w", err)
-	}
-
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("equipment not found or already deleted")
-	}
-
-	return nil
+	return r.SoftDeleteGeneric(ctx, "equipment", id)
 }
 
 // Restore restores a soft-deleted equipment by clearing deleted_at
 func (r *equipmentRepository) Restore(ctx context.Context, id uuid.UUID) error {
-	query := `
-		UPDATE equipment
-		SET deleted_at = NULL, updated_at = now()
-		WHERE id = $1 AND deleted_at IS NOT NULL
-	`
+	return r.RestoreGeneric(ctx, "equipment", id)
+}
 
-	result, err := r.pool.Exec(ctx, query, id)
+// ExistsByNumber checks if equipment exists with the given number (excluding soft-deleted)
+func (r *equipmentRepository) ExistsByNumber(ctx context.Context, number string, excludeID *uuid.UUID) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM equipment WHERE number = $1 AND deleted_at IS NULL`
+	args := []interface{}{number}
+	argIndex := 2
+
+	if excludeID != nil {
+		query += fmt.Sprintf(" AND id != $%d", argIndex)
+		args = append(args, *excludeID)
+	}
+	query += ")"
+
+	var exists bool
+	err := r.pool.QueryRow(ctx, query, args...).Scan(&exists)
 	if err != nil {
-		return fmt.Errorf("failed to restore equipment: %w", err)
+		return false, fmt.Errorf("failed to check equipment number existence: %w", err)
 	}
 
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("equipment not found or not deleted")
-	}
-
-	return nil
+	return exists, nil
 }
 
 // IsAttachedToTransport checks if equipment is currently attached to a transport
@@ -261,48 +250,13 @@ func (r *equipmentRepository) IsAttachedToTransport(ctx context.Context, equipme
 	query := `
 		SELECT EXISTS(
 			SELECT 1 FROM transport 
-			WHERE current_equipment_id = $1 AND deleted_at IS NULL
+			WHERE equipment_id = $1 AND deleted_at IS NULL
 		)
 	`
-
 	var exists bool
 	err := r.pool.QueryRow(ctx, query, equipmentID).Scan(&exists)
 	if err != nil {
-		return false, fmt.Errorf("failed to check transport attachment: %w", err)
+		return false, fmt.Errorf("failed to check equipment transport attachment: %w", err)
 	}
-
-	return exists, nil
-}
-
-// ExistsByNumber checks if equipment exists with the given number (excluding soft-deleted)
-func (r *equipmentRepository) ExistsByNumber(ctx context.Context, number string, excludeID *uuid.UUID) (bool, error) {
-	query := `
-		SELECT EXISTS(
-			SELECT 1 FROM equipment 
-			WHERE number = $1 AND deleted_at IS NULL
-		)
-	`
-
-	if excludeID != nil {
-		query = `
-			SELECT EXISTS(
-				SELECT 1 FROM equipment 
-				WHERE number = $1 AND id != $2 AND deleted_at IS NULL
-			)
-		`
-	}
-
-	var exists bool
-	var err error
-	if excludeID != nil {
-		err = r.pool.QueryRow(ctx, query, number, *excludeID).Scan(&exists)
-	} else {
-		err = r.pool.QueryRow(ctx, query, number).Scan(&exists)
-	}
-
-	if err != nil {
-		return false, fmt.Errorf("failed to check equipment number existence: %w", err)
-	}
-
 	return exists, nil
 }

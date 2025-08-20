@@ -3,7 +3,7 @@ package pg
 import (
 	"context"
 	"fmt"
-	"strings"
+	"time"
 
 	"eco-van-api/internal/models"
 	"eco-van-api/internal/port"
@@ -15,12 +15,16 @@ import (
 
 // warehouseRepository implements port.WarehouseRepository
 type warehouseRepository struct {
+	*BaseRepository
 	pool *pgxpool.Pool
 }
 
 // NewWarehouseRepository creates a new warehouse repository
 func NewWarehouseRepository(pool *pgxpool.Pool) port.WarehouseRepository {
-	return &warehouseRepository{pool: pool}
+	return &warehouseRepository{
+		BaseRepository: NewBaseRepository(pool),
+		pool:           pool,
+	}
 }
 
 // Create creates a new warehouse
@@ -29,6 +33,11 @@ func (r *warehouseRepository) Create(ctx context.Context, warehouse *models.Ware
 		INSERT INTO warehouses (id, name, address, notes, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
+
+	now := time.Now()
+	warehouse.ID = uuid.New()
+	warehouse.CreatedAt = now
+	warehouse.UpdatedAt = now
 
 	_, err := r.pool.Exec(ctx, query,
 		warehouse.ID,
@@ -88,33 +97,31 @@ func (r *warehouseRepository) List(ctx context.Context, req models.WarehouseList
 	}
 
 	// Build WHERE clause
-	whereClause := ""
-	if len(whereClauses) > 0 {
-		whereClause = "WHERE " + strings.Join(whereClauses, " AND ")
-	}
+	whereClause := r.BuildWhereClause(whereClauses)
 
 	// Count total
-	countQuery := fmt.Sprintf("SELECT COUNT(*) %s %s", baseQuery, whereClause)
-	var total int64
-	err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total)
+	total, err := r.CountTotal(ctx, baseQuery, whereClause, args)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to count warehouses: %w", err)
 	}
 
-	// Get paginated results
-	offset := (req.Page - 1) * req.PageSize
+	// Build pagination query
 	query := fmt.Sprintf(`
 		SELECT id, name, address, notes, created_at, updated_at, deleted_at
-		%s %s
-		ORDER BY name
+		%s
+		%s
+		ORDER BY created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, baseQuery, whereClause, len(args)+1, len(args)+2)
 
-	args = append(args, req.PageSize, offset)
+	// Calculate pagination
+	limit := req.PageSize
+	offset := (req.Page - 1) * req.PageSize
+	args = append(args, limit, offset)
 
 	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list warehouses: %w", err)
 	}
 	defer rows.Close()
 
@@ -131,32 +138,33 @@ func (r *warehouseRepository) List(ctx context.Context, req models.WarehouseList
 			&warehouse.DeletedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan warehouse: %w", err)
 		}
 		warehouses = append(warehouses, warehouse)
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, err
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over warehouses: %w", err)
 	}
 
 	return &models.WarehouseListResponse{
 		Items:    warehouses,
+		Total:    total,
 		Page:     req.Page,
 		PageSize: req.PageSize,
-		Total:    total,
 	}, nil
 }
 
 // Update updates an existing warehouse
 func (r *warehouseRepository) Update(ctx context.Context, warehouse *models.Warehouse) error {
 	query := `
-			UPDATE warehouses
-			SET name = $1, address = $2, notes = $3, updated_at = $4
-			WHERE id = $5 AND deleted_at IS NULL
-		`
+		UPDATE warehouses
+		SET name = $1, address = $2, notes = $3, updated_at = $4
+		WHERE id = $5
+	`
 
-	result, err := r.pool.Exec(ctx, query,
+	warehouse.UpdatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, query,
 		warehouse.Name,
 		warehouse.Address,
 		warehouse.Notes,
@@ -164,92 +172,52 @@ func (r *warehouseRepository) Update(ctx context.Context, warehouse *models.Ware
 		warehouse.ID,
 	)
 
-	if err != nil {
-		return err
-	}
-
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("warehouse not found")
-	}
-
-	return nil
+	return err
 }
 
 // SoftDelete marks a warehouse as deleted by setting deleted_at
 func (r *warehouseRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
-	query := `
-			UPDATE warehouses
-			SET deleted_at = now()
-			WHERE id = $1 AND deleted_at IS NULL
-		`
-
-	result, err := r.pool.Exec(ctx, query, id)
-	if err != nil {
-		return err
-	}
-
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("warehouse not found")
-	}
-
-	return nil
+	return r.SoftDeleteGeneric(ctx, "warehouses", id)
 }
 
 // Restore restores a soft-deleted warehouse by clearing deleted_at
 func (r *warehouseRepository) Restore(ctx context.Context, id uuid.UUID) error {
-	query := `
-			UPDATE warehouses
-			SET deleted_at = NULL
-			WHERE id = $1 AND deleted_at IS NOT NULL
-		`
-
-	result, err := r.pool.Exec(ctx, query, id)
-	if err != nil {
-		return err
-	}
-
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("warehouse not found")
-	}
-
-	return nil
+	return r.RestoreGeneric(ctx, "warehouses", id)
 }
 
 // ExistsByName checks if a warehouse exists with the given name (excluding soft-deleted)
 func (r *warehouseRepository) ExistsByName(ctx context.Context, name string, excludeID *uuid.UUID) (bool, error) {
-	query := `
-		SELECT EXISTS(
-			SELECT 1 FROM warehouses
-			WHERE name = $1 AND deleted_at IS NULL
-		)
-	`
-
+	query := `SELECT EXISTS(SELECT 1 FROM warehouses WHERE name = $1 AND deleted_at IS NULL`
 	args := []interface{}{name}
+	argIndex := 2
+
 	if excludeID != nil {
-		query = `
-			SELECT EXISTS(
-				SELECT 1 FROM warehouses
-				WHERE name = $1 AND id != $2 AND deleted_at IS NULL
-			)
-		`
+		query += fmt.Sprintf(" AND id != $%d", argIndex)
 		args = append(args, *excludeID)
 	}
+	query += ")"
 
 	var exists bool
 	err := r.pool.QueryRow(ctx, query, args...).Scan(&exists)
-	return exists, err
+	if err != nil {
+		return false, fmt.Errorf("failed to check warehouse name existence: %w", err)
+	}
+
+	return exists, nil
 }
 
 // HasActiveEquipment checks if a warehouse has any non-deleted equipment
 func (r *warehouseRepository) HasActiveEquipment(ctx context.Context, warehouseID uuid.UUID) (bool, error) {
 	query := `
 		SELECT EXISTS(
-			SELECT 1 FROM equipment
+			SELECT 1 FROM equipment 
 			WHERE warehouse_id = $1 AND deleted_at IS NULL
 		)
 	`
-
-	var hasEquipment bool
-	err := r.pool.QueryRow(ctx, query, warehouseID).Scan(&hasEquipment)
-	return hasEquipment, err
+	var exists bool
+	err := r.pool.QueryRow(ctx, query, warehouseID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check warehouse equipment: %w", err)
+	}
+	return exists, nil
 }

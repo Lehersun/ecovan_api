@@ -169,5 +169,31 @@ func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// GetByEmail retrieves a user by email
+func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	return r.FindByEmail(ctx, email)
+}
+
+// ExistsByEmail checks if a user exists with the given email
+func (r *UserRepository) ExistsByEmail(ctx context.Context, email string, excludeID *uuid.UUID) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1`
+	args := []interface{}{email}
+	argIndex := 2
+
+	if excludeID != nil {
+		query += fmt.Sprintf(" AND id != $%d", argIndex)
+		args = append(args, *excludeID)
+	}
+	query += ")"
+
+	var exists bool
+	err := r.db.pool.QueryRow(ctx, query, args...).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check user email existence: %w", err)
+	}
+
+	return exists, nil
+}
+
 // Ensure UserRepository implements the interface
 var _ port.UserRepository = (*UserRepository)(nil)

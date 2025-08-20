@@ -106,7 +106,7 @@ func (s *clientObjectService) List(ctx context.Context, clientID uuid.UUID, req 
 	}
 
 	// Get client objects
-	response, err := s.clientObjectRepo.List(ctx, clientID, req)
+	response, err := s.clientObjectRepo.ListByClient(ctx, clientID, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list client objects: %w", err)
 	}

@@ -29,7 +29,15 @@ func (m *MockClientObjectRepository) GetByID(ctx context.Context, id uuid.UUID, 
 	return args.Get(0).(*models.ClientObject), args.Error(1)
 }
 
-func (m *MockClientObjectRepository) List(ctx context.Context, clientID uuid.UUID, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error) {
+func (m *MockClientObjectRepository) List(ctx context.Context, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.ClientObjectListResponse), args.Error(1)
+}
+
+func (m *MockClientObjectRepository) ListByClient(ctx context.Context, clientID uuid.UUID, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error) {
 	args := m.Called(ctx, clientID, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -73,6 +81,11 @@ func (m *MockClientObjectRepository) GetDeleteConflicts(ctx context.Context, cli
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.DeleteConflicts), args.Error(1)
+}
+
+func (m *MockClientObjectRepository) ExistsByAddress(ctx context.Context, clientID uuid.UUID, address string, excludeID *uuid.UUID) (bool, error) {
+	args := m.Called(ctx, clientID, address, excludeID)
+	return args.Bool(0), args.Error(1)
 }
 
 func TestNewClientObjectService(t *testing.T) {
