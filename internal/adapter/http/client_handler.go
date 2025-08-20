@@ -43,7 +43,7 @@ func (h *clientHandler) ListClients(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	includeDeleted := r.URL.Query().Get("includeDeleted") == "true"
+	includeDeleted := r.URL.Query().Get("includeDeleted") == QueryParamIncludeDeleted
 
 	// Set defaults
 	if page <= 0 {

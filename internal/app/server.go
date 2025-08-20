@@ -106,7 +106,8 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `{"message":"API v1","endpoints":["/healthz","/metrics","/auth/login","/auth/refresh","/users","/clients","/warehouses"]}`)
+			endpoints := `["/healthz","/metrics","/auth/login","/auth/refresh","/users","/clients","/warehouses","/equipment","/drivers"]`
+			fmt.Fprintf(w, `{"message":"API v1","endpoints":%s}`, endpoints)
 		})
 
 		// Metrics endpoint
@@ -256,6 +257,35 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 				r.Put("/{id}", equipmentHandler.UpdateEquipment)
 				r.Delete("/{id}", equipmentHandler.DeleteEquipment)
 				r.Post("/{id}/restore", equipmentHandler.RestoreEquipment)
+			})
+		})
+
+		// Protected driver management endpoints
+		r.Route("/drivers", func(r chi.Router) {
+			// Create driver handler and middleware
+			driverRepo := pg.NewDriverRepository(db.GetPool())
+			driverService := service.NewDriverService(driverRepo)
+			driverHandler := httpmiddleware.NewDriverHandler(driverService)
+			driverJWTManager := auth.NewDefaultJWTManager(cfg.Auth.JWTSecret)
+			authMiddleware := httpmiddleware.NewAuthMiddleware(driverJWTManager)
+			rbacMiddleware := httpmiddleware.NewRBACMiddleware()
+
+			// Require authentication for all driver endpoints
+			r.Use(authMiddleware.RequireAuth)
+
+			// Read endpoints - accessible by all authenticated users
+			r.With(rbacMiddleware.RequireReadAccess).Group(func(r chi.Router) {
+				r.Get("/", driverHandler.ListDrivers)
+				r.Get("/{id}", driverHandler.GetDriver)
+				r.Get("/available", driverHandler.ListAvailableDrivers)
+			})
+
+			// Write endpoints - ADMIN and DISPATCHER only
+			r.With(rbacMiddleware.RequireWriteAccess).Group(func(r chi.Router) {
+				r.Post("/", driverHandler.CreateDriver)
+				r.Put("/{id}", driverHandler.UpdateDriver)
+				r.Delete("/{id}", driverHandler.DeleteDriver)
+				r.Post("/{id}/restore", driverHandler.RestoreDriver)
 			})
 		})
 	})
