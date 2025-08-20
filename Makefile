@@ -60,11 +60,6 @@ clean: ## Clean build artifacts
 	rm -f coverage.out coverage.html
 	go clean -cache -testcache
 
-# Environment setup
-env-setup: ## Setup environment files (.env and .env.test)
-	@echo "Setting up environment files..."
-	@./setup-env.sh
-
 # Development database
 db: ## Start development database
 	@echo "Starting development database..."
@@ -162,11 +157,12 @@ dev-stop: ## Stop development environment (database + application)
 	@echo "✅ Development environment stopped"
 
 # Reset development environment (fresh start)
-dev-reset: dev-stop ## Reset development environment (stop + fresh start)
+dev-reset: dev-stop db build dev## Reset development environment (stop + fresh start)
 	@echo "🔄 Resetting development environment..."
 	@echo "🗑️  Removing old database container..."
 	@make db-stop
 	@echo "🚀 Starting fresh development environment..."
+	@make
 	@make dev
 
 test-db-stop: ## Stop test database

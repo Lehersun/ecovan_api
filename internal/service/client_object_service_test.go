@@ -153,7 +153,7 @@ func TestClientObjectService_Create(t *testing.T) {
 				clientRepo.On("GetByID", mock.Anything, clientID, false).Return(nil, assert.AnError)
 			},
 			expectedError: true,
-			errorContains: "client not found",
+			errorContains: "failed to get client",
 		},
 		{
 			name: "name already exists",
@@ -219,7 +219,6 @@ func TestClientObjectService_GetByID(t *testing.T) {
 			objectID:       objectID,
 			includeDeleted: false,
 			mockSetup: func(clientObjectRepo *MockClientObjectRepository, clientRepo *MockClientRepository) {
-				clientRepo.On("GetByID", mock.Anything, clientID, false).Return(&models.Client{ID: clientID}, nil)
 				clientObjectRepo.On("GetByID", mock.Anything, objectID, false).Return(&models.ClientObject{
 					ID:       objectID,
 					ClientID: clientID,
@@ -230,35 +229,23 @@ func TestClientObjectService_GetByID(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name:           "client not found",
-			clientID:       clientID,
-			objectID:       objectID,
-			includeDeleted: false,
-			mockSetup: func(clientObjectRepo *MockClientObjectRepository, clientRepo *MockClientRepository) {
-				clientRepo.On("GetByID", mock.Anything, clientID, false).Return(nil, assert.AnError)
-			},
-			expectedError: true,
-			errorContains: "client not found",
-		},
-		{
 			name:           "client object not found",
 			clientID:       clientID,
 			objectID:       objectID,
 			includeDeleted: false,
 			mockSetup: func(clientObjectRepo *MockClientObjectRepository, clientRepo *MockClientRepository) {
-				clientRepo.On("GetByID", mock.Anything, clientID, false).Return(&models.Client{ID: clientID}, nil)
 				clientObjectRepo.On("GetByID", mock.Anything, objectID, false).Return(nil, assert.AnError)
 			},
 			expectedError: true,
-			errorContains: "client object not found",
+			errorContains: "failed to get client object",
 		},
+
 		{
 			name:           "client object belongs to different client",
 			clientID:       clientID,
 			objectID:       objectID,
 			includeDeleted: false,
 			mockSetup: func(clientObjectRepo *MockClientObjectRepository, clientRepo *MockClientRepository) {
-				clientRepo.On("GetByID", mock.Anything, clientID, false).Return(&models.Client{ID: clientID}, nil)
 				clientObjectRepo.On("GetByID", mock.Anything, objectID, false).Return(&models.ClientObject{
 					ID:       objectID,
 					ClientID: uuid.New(), // Different client ID
