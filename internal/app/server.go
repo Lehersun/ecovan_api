@@ -106,7 +106,7 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			endpoints := `["/healthz","/metrics","/auth/login","/auth/refresh","/users",` +
+			endpoints := `["/healthz","/metrics","/auth/login","/auth/refresh","/auth/me","/users",` +
 				`"/clients","/warehouses","/equipment","/drivers","/transport","/orders"]`
 			fmt.Fprintf(w, `{"message":"API v1","endpoints":%s}`, endpoints)
 		})
@@ -127,6 +127,20 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 			// Public auth endpoints
 			r.Post("/login", authHandler.Login)
 			r.Post("/refresh", authHandler.Refresh)
+		})
+
+		// Protected auth endpoints
+		r.Route("/auth/me", func(r chi.Router) {
+			// Create auth handler and middleware
+			userRepo := pg.NewUserRepository(db)
+			jwtManager := auth.NewDefaultJWTManager(cfg.Auth.JWTSecret)
+			authService := service.NewAuthService(userRepo, jwtManager)
+			authHandler := httpmiddleware.NewAuthHandler(authService)
+			authMiddleware := httpmiddleware.NewAuthMiddleware(jwtManager)
+
+			// Require authentication
+			r.Use(authMiddleware.RequireAuth)
+			r.Get("/", authHandler.GetCurrentUser)
 		})
 
 		// Protected user management endpoints

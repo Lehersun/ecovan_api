@@ -20,3 +20,11 @@ const (
 	// Magic numbers
 	MaxPageSize = 100
 )
+
+// Context key types to avoid collisions
+type contextKey string
+
+const (
+	UserIDKey   contextKey = "user_id"
+	UserRoleKey contextKey = "user_role"
+)

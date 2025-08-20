@@ -11,13 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Context key types to avoid collisions
-type contextKey string
 
-const (
-	userIDKey   contextKey = "user_id"
-	userRoleKey contextKey = "user_role"
-)
 
 // AuthMiddleware provides authentication for protected routes
 type AuthMiddleware struct {
@@ -62,8 +56,8 @@ func (m *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 		}
 
 		// Add user information to request context
-		ctx := context.WithValue(r.Context(), userIDKey, claims.UserID)
-		ctx = context.WithValue(ctx, userRoleKey, claims.Role)
+		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+		ctx = context.WithValue(ctx, UserRoleKey, claims.Role)
 
 		// Call the next handler with the updated context
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -75,7 +69,7 @@ func (m *AuthMiddleware) RequireRole(requiredRole models.UserRole) func(http.Han
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// First, ensure user is authenticated
-			userRole, ok := r.Context().Value(userRoleKey).(models.UserRole)
+			userRole, ok := r.Context().Value(UserRoleKey).(models.UserRole)
 			if !ok {
 				WriteUnauthorized(w, "User role not found in context")
 				return
@@ -98,7 +92,7 @@ func (m *AuthMiddleware) RequireAnyRole(requiredRoles ...models.UserRole) func(h
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// First, ensure user is authenticated
-			userRole, ok := r.Context().Value(userRoleKey).(models.UserRole)
+			userRole, ok := r.Context().Value(UserRoleKey).(models.UserRole)
 			if !ok {
 				WriteUnauthorized(w, "User role not found in context")
 				return
@@ -126,12 +120,12 @@ func (m *AuthMiddleware) RequireAnyRole(requiredRoles ...models.UserRole) func(h
 
 // GetUserIDFromContext extracts the user ID from the request context
 func GetUserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
-	userID, ok := ctx.Value(userIDKey).(uuid.UUID)
+	userID, ok := ctx.Value(UserIDKey).(uuid.UUID)
 	return userID, ok
 }
 
 // GetUserRoleFromContext extracts the user role from the request context
 func GetUserRoleFromContext(ctx context.Context) (models.UserRole, bool) {
-	userRole, ok := ctx.Value(userRoleKey).(models.UserRole)
+	userRole, ok := ctx.Value(UserRoleKey).(models.UserRole)
 	return userRole, ok
 }

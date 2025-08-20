@@ -9,6 +9,7 @@ import (
 	"eco-van-api/internal/service"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 // AuthHandler handles authentication HTTP requests
@@ -204,4 +205,29 @@ func (h *AuthHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	// Return success response
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetCurrentUser handles current user retrieval requests
+func (h *AuthHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context (set by auth middleware)
+	userID, ok := r.Context().Value(UserIDKey).(uuid.UUID)
+	if !ok {
+		WriteUnauthorized(w, "User ID not found in context")
+		return
+	}
+
+	// Get user
+	user, err := h.authService.GetUser(r.Context(), userID.String())
+	if err != nil {
+		WriteNotFound(w, "User not found")
+		return
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		WriteInternalError(w, "Failed to encode response")
+		return
+	}
 }
