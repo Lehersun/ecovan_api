@@ -111,7 +111,7 @@ func (r *warehouseRepository) List(ctx context.Context, req models.WarehouseList
 	const offsetIncrement = 2
 	offsetParamNum := len(args) + offsetIncrement
 	mainQuery := fmt.Sprintf(`
-		SELECT id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at
+		SELECT id, name, address, notes, created_at, updated_at, deleted_at
 		%s
 		ORDER BY name
 		LIMIT $%d

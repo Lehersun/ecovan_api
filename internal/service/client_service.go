@@ -23,6 +23,8 @@ func NewClientService(clientRepo port.ClientRepository) port.ClientService {
 }
 
 // Create creates a new client with validation
+//
+//nolint:dupl // Similar pattern across services but with different business logic
 func (s *clientService) Create(ctx context.Context, req models.CreateClientRequest) (*models.ClientResponse, error) {
 	// Check if client with same name already exists
 	exists, err := s.clientRepo.ExistsByName(ctx, req.Name, nil)

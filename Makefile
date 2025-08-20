@@ -161,6 +161,8 @@ dev-reset: dev-stop db build dev## Reset development environment (stop + fresh s
 	@echo "🔄 Resetting development environment..."
 	@echo "🗑️  Removing old database container..."
 	@make db-stop
+	@echo "🔫 Killing any existing application processes on port 8080..."
+	@lsof -ti:8080 | xargs kill -9 2>/dev/null || echo "No processes found on port 8080"
 	@echo "🚀 Starting fresh development environment..."
 	@make
 	@make dev

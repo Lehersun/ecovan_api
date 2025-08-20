@@ -64,7 +64,7 @@ func (r *equipmentRepository) GetByID(ctx context.Context, id uuid.UUID, include
 	`
 
 	if !includeDeleted {
-		query += " AND deleted_at IS NULL"
+		query += DeletedAtFilter
 	}
 
 	var equipment models.Equipment

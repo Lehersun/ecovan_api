@@ -106,7 +106,8 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			endpoints := `["/healthz","/metrics","/auth/login","/auth/refresh","/users","/clients","/warehouses","/equipment","/drivers"]`
+			endpoints := `["/healthz","/metrics","/auth/login","/auth/refresh","/users",` +
+				`"/clients","/warehouses","/equipment","/drivers","/transport"]`
 			fmt.Fprintf(w, `{"message":"API v1","endpoints":%s}`, endpoints)
 		})
 
@@ -289,6 +290,41 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 				r.Put("/{id}", driverHandler.UpdateDriver)
 				r.Delete("/{id}", driverHandler.DeleteDriver)
 				r.Post("/{id}/restore", driverHandler.RestoreDriver)
+			})
+		})
+
+		// Protected transport management endpoints
+		//nolint:dupl // Similar route pattern across resources but with different handlers and services
+		r.Route("/transport", func(r chi.Router) {
+			// Create transport handler and middleware
+			transportRepo := pg.NewTransportRepository(db.GetPool())
+			driverRepo := pg.NewDriverRepository(db.GetPool())
+			equipmentRepo := pg.NewEquipmentRepository(db.GetPool())
+			transportService := service.NewTransportService(transportRepo, driverRepo, equipmentRepo)
+			transportHandler := httpmiddleware.NewTransportHandler(transportService)
+
+			transportJWTManager := auth.NewDefaultJWTManager(cfg.Auth.JWTSecret)
+			authMiddleware := httpmiddleware.NewAuthMiddleware(transportJWTManager)
+			rbacMiddleware := httpmiddleware.NewRBACMiddleware()
+
+			// Require authentication for all transport endpoints
+			r.Use(authMiddleware.RequireAuth)
+
+			// Read endpoints - accessible by all authenticated users
+			r.With(rbacMiddleware.RequireReadAccess).Group(func(r chi.Router) {
+				r.Get("/", transportHandler.ListItems)
+				r.Get("/{id}", transportHandler.GetItem)
+				r.Get("/available", transportHandler.GetAvailable)
+			})
+
+			// Write endpoints - ADMIN and DISPATCHER only
+			r.With(rbacMiddleware.RequireWriteAccess).Group(func(r chi.Router) {
+				r.Post("/", transportHandler.CreateItem)
+				r.Put("/{id}", transportHandler.UpdateItem)
+				r.Delete("/{id}", transportHandler.DeleteItem)
+				r.Post("/{id}/restore", transportHandler.RestoreItem)
+				r.Put("/{id}/assign-driver", transportHandler.AssignDriver)
+				r.Put("/{id}/assign-equipment", transportHandler.AssignEquipment)
 			})
 		})
 	})

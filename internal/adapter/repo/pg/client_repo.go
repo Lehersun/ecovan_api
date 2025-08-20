@@ -131,6 +131,7 @@ func (r *clientRepository) List(ctx context.Context, req models.ClientListReques
 	offsetParamNum := len(args) + offsetIncrement
 	mainQuery := fmt.Sprintf(`
 		SELECT id, name, tax_id, email, phone, notes, created_at, updated_at, deleted_at
+		FROM clients
 		%s
 		ORDER BY name
 		LIMIT $%d
