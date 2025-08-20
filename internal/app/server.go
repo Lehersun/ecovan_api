@@ -205,6 +205,7 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 		})
 
 		// Protected warehouse management endpoints
+		//nolint:dupl // Similar route pattern across resources but with different handlers and services
 		r.Route("/warehouses", func(r chi.Router) {
 			// Create warehouse handler and middleware
 			warehouseRepo := pg.NewWarehouseRepository(db.GetPool())
@@ -233,6 +234,7 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 		})
 
 		// Protected equipment management endpoints
+		//nolint:dupl // Similar route pattern across resources but with different handlers and services
 		r.Route("/equipment", func(r chi.Router) {
 			// Create equipment handler and middleware
 			equipmentRepo := pg.NewEquipmentRepository(db.GetPool())

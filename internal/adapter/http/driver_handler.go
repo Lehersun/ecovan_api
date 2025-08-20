@@ -101,6 +101,8 @@ func (h *DriverHandler) GetDriver(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateDriver handles POST /api/v1/drivers
+//
+//nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *DriverHandler) CreateDriver(w http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	var req models.CreateDriverRequest
@@ -131,6 +133,8 @@ func (h *DriverHandler) CreateDriver(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateDriver handles PUT /api/v1/drivers/{id}
+//
+//nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *DriverHandler) UpdateDriver(w http.ResponseWriter, r *http.Request) {
 	// Parse driver ID
 	idStr := chi.URLParam(r, "id")

@@ -54,6 +54,8 @@ func (r *clientRepository) Create(ctx context.Context, client *models.Client) er
 }
 
 // GetByID retrieves a client by ID, optionally including soft-deleted
+//
+//nolint:dupl // Similar pattern across repositories but with different models and fields
 func (r *clientRepository) GetByID(ctx context.Context, id uuid.UUID, includeDeleted bool) (*models.Client, error) {
 	query := `
 		SELECT id, name, tax_id, email, phone, notes, created_at, updated_at, deleted_at

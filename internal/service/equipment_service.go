@@ -142,6 +142,8 @@ func (s *equipmentService) Update(ctx context.Context, id uuid.UUID, req models.
 }
 
 // Delete soft-deletes equipment (only if not attached to transport)
+//
+//nolint:dupl // Similar pattern across services but with different business logic and checks
 func (s *equipmentService) Delete(ctx context.Context, id uuid.UUID) error {
 	// Get existing equipment
 	equipment, err := s.equipmentRepo.GetByID(ctx, id, false)

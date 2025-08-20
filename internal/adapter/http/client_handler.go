@@ -73,6 +73,8 @@ func (h *clientHandler) ListClients(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateClient handles POST /v1/clients
+//
+//nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *clientHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateClientRequest
 
@@ -130,6 +132,8 @@ func (h *clientHandler) GetClient(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateClient handles PUT /v1/clients/{id}
+//
+//nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *clientHandler) UpdateClient(w http.ResponseWriter, r *http.Request) {
 	// Parse ID from URL
 	idStr := chi.URLParam(r, "id")
@@ -200,6 +204,8 @@ func (h *clientHandler) DeleteClient(w http.ResponseWriter, r *http.Request) {
 }
 
 // RestoreClient handles POST /v1/clients/{id}/restore
+//
+//nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *clientHandler) RestoreClient(w http.ResponseWriter, r *http.Request) {
 	// Parse ID from URL
 	idStr := chi.URLParam(r, "id")

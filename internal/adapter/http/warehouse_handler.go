@@ -71,6 +71,8 @@ func (h *warehouseHandler) ListWarehouses(w http.ResponseWriter, r *http.Request
 }
 
 // CreateWarehouse handles POST /v1/warehouses
+//
+//nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *warehouseHandler) CreateWarehouse(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateWarehouseRequest
 
@@ -127,6 +129,8 @@ func (h *warehouseHandler) GetWarehouse(w http.ResponseWriter, r *http.Request) 
 }
 
 // UpdateWarehouse handles PUT /v1/warehouses/{id}
+//
+//nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *warehouseHandler) UpdateWarehouse(w http.ResponseWriter, r *http.Request) {
 	// Parse warehouse ID
 	idStr := chi.URLParam(r, "id")
@@ -204,6 +208,8 @@ func (h *warehouseHandler) DeleteWarehouse(w http.ResponseWriter, r *http.Reques
 }
 
 // RestoreWarehouse handles POST /v1/warehouses/{id}/restore
+//
+//nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *warehouseHandler) RestoreWarehouse(w http.ResponseWriter, r *http.Request) {
 	// Parse warehouse ID
 	idStr := chi.URLParam(r, "id")

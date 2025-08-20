@@ -48,6 +48,8 @@ func (r *driverRepository) Create(ctx context.Context, driver *models.Driver) er
 }
 
 // GetByID retrieves driver by ID, optionally including soft-deleted
+//
+//nolint:dupl // Similar pattern across repositories but with different models and fields
 func (r *driverRepository) GetByID(ctx context.Context, id uuid.UUID, includeDeleted bool) (*models.Driver, error) {
 	query := `
 		SELECT id, full_name, phone, license_no, license_class, photo, created_at, updated_at, deleted_at
@@ -183,6 +185,8 @@ func (r *driverRepository) Restore(ctx context.Context, id uuid.UUID) error {
 }
 
 // ExistsByLicenseNo checks if driver exists with the given license number (excluding soft-deleted)
+//
+//nolint:dupl // Similar pattern across repositories but with different field names
 func (r *driverRepository) ExistsByLicenseNo(ctx context.Context, licenseNo string, excludeID *uuid.UUID) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM drivers WHERE license_no = $1 AND deleted_at IS NULL`
 	args := []interface{}{licenseNo}

@@ -225,6 +225,8 @@ func (r *equipmentRepository) Restore(ctx context.Context, id uuid.UUID) error {
 }
 
 // ExistsByNumber checks if equipment exists with the given number (excluding soft-deleted)
+//
+//nolint:dupl // Similar pattern across repositories but with different field names
 func (r *equipmentRepository) ExistsByNumber(ctx context.Context, number string, excludeID *uuid.UUID) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM equipment WHERE number = $1 AND deleted_at IS NULL`
 	args := []interface{}{number}

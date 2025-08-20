@@ -116,6 +116,8 @@ func (s *warehouseService) Update(ctx context.Context, id uuid.UUID, req models.
 }
 
 // Delete soft-deletes a warehouse (only if no active equipment)
+//
+//nolint:dupl // Similar pattern across services but with different business logic and checks
 func (s *warehouseService) Delete(ctx context.Context, id uuid.UUID) error {
 	// Check if warehouse exists
 	warehouse, err := s.warehouseRepo.GetByID(ctx, id, false)

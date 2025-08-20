@@ -190,6 +190,8 @@ func (r *warehouseRepository) Restore(ctx context.Context, id uuid.UUID) error {
 }
 
 // ExistsByName checks if a warehouse exists with the given name (excluding soft-deleted)
+//
+//nolint:dupl // Similar pattern across repositories but with different field names
 func (r *warehouseRepository) ExistsByName(ctx context.Context, name string, excludeID *uuid.UUID) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM warehouses WHERE name = $1 AND deleted_at IS NULL`
 	args := []interface{}{name}

@@ -158,7 +158,8 @@ func (r *clientObjectRepository) ExistsByName(ctx context.Context, clientID uuid
 
 // HasActiveOrders checks if there are active orders for this client object
 func (r *clientObjectRepository) HasActiveOrders(ctx context.Context, clientObjectID uuid.UUID) (bool, error) {
-	query := "SELECT EXISTS(SELECT 1 FROM orders WHERE object_id = $1 AND status IN ('DRAFT', 'SCHEDULED', 'IN_PROGRESS') AND deleted_at IS NULL)"
+	query := "SELECT EXISTS(SELECT 1 FROM orders WHERE object_id = $1 " +
+		"AND status IN ('DRAFT', 'SCHEDULED', 'IN_PROGRESS') AND deleted_at IS NULL)"
 	var exists bool
 	err := r.pool.QueryRow(ctx, query, clientObjectID).Scan(&exists)
 	return exists, err
@@ -319,7 +320,8 @@ func (r *clientObjectRepository) ListByClient(
 
 	// Build SELECT query
 	offset := (req.Page - 1) * req.PageSize
-	selectQuery := fmt.Sprintf("SELECT id, client_id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at %s ORDER BY created_at DESC LIMIT $2 OFFSET $3", baseQuery)
+	selectQuery := fmt.Sprintf("SELECT id, client_id, name, address, geo_lat, geo_lng, notes, "+
+		"created_at, updated_at, deleted_at %s ORDER BY created_at DESC LIMIT $2 OFFSET $3", baseQuery)
 
 	args = append(args, req.PageSize, offset)
 
