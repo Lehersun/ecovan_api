@@ -107,7 +107,7 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			endpoints := `["/healthz","/metrics","/auth/login","/auth/refresh","/users",` +
-				`"/clients","/warehouses","/equipment","/drivers","/transport"]`
+				`"/clients","/warehouses","/equipment","/drivers","/transport","/orders"]`
 			fmt.Fprintf(w, `{"message":"API v1","endpoints":%s}`, endpoints)
 		})
 
@@ -327,18 +327,53 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 				r.Put("/{id}/assign-equipment", transportHandler.AssignEquipment)
 			})
 		})
-	})
 
-	// 404 handler for unmatched routes
-	router.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		httpmiddleware.WriteNotFound(w, "The requested resource was not found")
-	})
+		// Protected order management endpoints
+		//nolint:dupl // Similar route pattern across resources but with different handlers and services
+		r.Route("/orders", func(r chi.Router) {
+			// Create order handler and middleware
+			orderRepo := pg.NewOrderRepository(db.GetPool())
+			clientRepo := pg.NewClientRepository(db.GetPool())
+			clientObjRepo := pg.NewClientObjectRepository(db.GetPool())
+			transportRepo := pg.NewTransportRepository(db.GetPool())
+			orderService := service.NewOrderService(orderRepo, clientRepo, clientObjRepo, transportRepo)
+			orderHandler := httpmiddleware.NewOrderHandler(orderService)
 
-	// Method not allowed handler
-	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		httpmiddleware.WriteProblemWithType(w, http.StatusMethodNotAllowed,
-			"/errors/method-not-allowed",
-			"The HTTP method is not allowed for this resource")
+			orderJWTManager := auth.NewDefaultJWTManager(cfg.Auth.JWTSecret)
+			authMiddleware := httpmiddleware.NewAuthMiddleware(orderJWTManager)
+			rbacMiddleware := httpmiddleware.NewRBACMiddleware()
+
+			// Require authentication for all order endpoints
+			r.Use(authMiddleware.RequireAuth)
+
+			// Read endpoints - accessible by all authenticated users
+			r.With(rbacMiddleware.RequireReadAccess).Group(func(r chi.Router) {
+				r.Get("/", orderHandler.ListOrders)
+				r.Get("/{id}", orderHandler.GetOrder)
+			})
+
+			// Write endpoints - ADMIN and DISPATCHER only
+			r.With(rbacMiddleware.RequireWriteAccess).Group(func(r chi.Router) {
+				r.Post("/", orderHandler.CreateOrder)
+				r.Put("/{id}", orderHandler.UpdateOrder)
+				r.Delete("/{id}", orderHandler.DeleteOrder)
+				r.Post("/{id}/restore", orderHandler.RestoreOrder)
+				r.Put("/{id}/status", orderHandler.UpdateOrderStatus)
+				r.Put("/{id}/assign-transport", orderHandler.AssignTransport)
+			})
+		})
+
+		// 404 handler for unmatched routes
+		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+			httpmiddleware.WriteNotFound(w, "The requested resource was not found")
+		})
+
+		// Method not allowed handler
+		r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+			httpmiddleware.WriteProblemWithType(w, http.StatusMethodNotAllowed,
+				"/errors/method-not-allowed",
+				"The HTTP method is not allowed for this resource")
+		})
 	})
 }
 

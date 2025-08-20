@@ -399,7 +399,7 @@ func TestOrder_StatusTransitions(t *testing.T) {
 		ID:            uuid.New(),
 		ClientID:      uuid.New(),
 		ObjectID:      uuid.New(),
-		ScheduledDate: "2025-01-01",
+		ScheduledDate: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 		Status:        "DRAFT",
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),

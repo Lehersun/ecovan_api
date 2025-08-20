@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -81,8 +82,13 @@ func WithTx(t *testing.T, fn func(ctx context.Context, tx pgx.Tx)) {
 	fn(ctx, tx)
 }
 
+// DBExecutor is an interface for executing database operations
+type DBExecutor interface {
+	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
 // MakeClient creates a minimal valid client record
-func MakeClient(t *testing.T, ctx context.Context, tx pgx.Tx, name string) uuid.UUID {
+func MakeClient(t *testing.T, ctx context.Context, db DBExecutor, name string) uuid.UUID {
 	t.Helper()
 
 	if name == "" {
@@ -95,7 +101,7 @@ func MakeClient(t *testing.T, ctx context.Context, tx pgx.Tx, name string) uuid.
 		VALUES ($1, $2, $3, $4)
 	`
 
-	_, err := tx.Exec(ctx, query, clientID, name, "+1234567890", "test@example.com")
+	_, err := db.Exec(ctx, query, clientID, name, "+1234567890", "test@example.com")
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
 	}
@@ -104,7 +110,7 @@ func MakeClient(t *testing.T, ctx context.Context, tx pgx.Tx, name string) uuid.
 }
 
 // MakeClientObject creates a minimal valid client object record
-func MakeClientObject(t *testing.T, ctx context.Context, tx pgx.Tx, clientID uuid.UUID, name string) uuid.UUID {
+func MakeClientObject(t *testing.T, ctx context.Context, db DBExecutor, clientID uuid.UUID, name string) uuid.UUID {
 	t.Helper()
 
 	if name == "" {
@@ -117,7 +123,7 @@ func MakeClientObject(t *testing.T, ctx context.Context, tx pgx.Tx, clientID uui
 		VALUES ($1, $2, $3, $4)
 	`
 
-	_, err := tx.Exec(ctx, query, objectID, clientID, name, "123 Test St")
+	_, err := db.Exec(ctx, query, objectID, clientID, name, "123 Test St")
 	if err != nil {
 		t.Fatalf("Failed to create client object: %v", err)
 	}
@@ -126,7 +132,7 @@ func MakeClientObject(t *testing.T, ctx context.Context, tx pgx.Tx, clientID uui
 }
 
 // MakeOrder creates a minimal valid order record
-func MakeOrder(t *testing.T, ctx context.Context, tx pgx.Tx, clientID, clientObjectID uuid.UUID) uuid.UUID {
+func MakeOrder(t *testing.T, ctx context.Context, db DBExecutor, clientID, clientObjectID uuid.UUID) uuid.UUID {
 	t.Helper()
 
 	orderID := uuid.New()
@@ -135,7 +141,7 @@ func MakeOrder(t *testing.T, ctx context.Context, tx pgx.Tx, clientID, clientObj
 		VALUES ($1, $2, $3, $4, $5)
 	`
 
-	_, err := tx.Exec(ctx, query, orderID, clientID, clientObjectID, "2025-01-01", "DRAFT")
+	_, err := db.Exec(ctx, query, orderID, clientID, clientObjectID, "2025-01-01", "DRAFT")
 	if err != nil {
 		t.Fatalf("Failed to create order: %v", err)
 	}
