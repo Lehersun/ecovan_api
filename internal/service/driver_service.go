@@ -165,9 +165,9 @@ func (s *driverService) ListAvailable(ctx context.Context, req models.DriverList
 	}
 
 	// Convert to response format
-	var items []models.DriverResponse
-	for _, driver := range drivers {
-		items = append(items, driver.ToResponse())
+	items := make([]models.DriverResponse, 0, len(drivers))
+	for i := range drivers {
+		items = append(items, drivers[i].ToResponse())
 	}
 
 	return &models.DriverListResponse{

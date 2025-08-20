@@ -14,7 +14,8 @@ const (
 	QueryParamIncludeDeleted = "true"
 
 	// Common prefixes
-	ErrClientObjectNamePrefix = "client object with name"
+	ErrClientObjectNamePrefix   = "client object with name"
+	ErrCannotDeleteClientObject = "cannot delete client object"
 
 	// Magic numbers
 	MaxPageSize = 100

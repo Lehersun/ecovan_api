@@ -54,7 +54,7 @@ func (r *clientObjectRepository) GetByID(ctx context.Context, id uuid.UUID, incl
 		WHERE id = $1
 	`
 	if !includeDeleted {
-		query += " AND deleted_at IS NULL"
+		query += DeletedAtFilter
 	}
 
 	var clientObject models.ClientObject
@@ -86,8 +86,7 @@ func (r *clientObjectRepository) Update(ctx context.Context, clientObject *model
 	query := `
 		UPDATE client_objects
 		SET name = $1, address = $2, geo_lat = $3, geo_lng = $4, notes = $5, updated_at = $6
-		WHERE id = $7 AND deleted_at IS NULL
-	`
+		WHERE id = $7` + DeletedAtFilter
 	result, err := r.pool.Exec(ctx, query,
 		clientObject.Name,
 		clientObject.Address,
@@ -123,8 +122,7 @@ func (r *clientObjectRepository) SoftDelete(ctx context.Context, id uuid.UUID) e
 	query := `
 		UPDATE client_objects
 		SET deleted_at = now(), updated_at = now()
-		WHERE id = $1 AND deleted_at IS NULL
-	`
+		WHERE id = $1` + DeletedAtFilter
 	result, err := r.pool.Exec(ctx, query, id)
 	if err != nil {
 		return err
@@ -144,23 +142,14 @@ func (r *clientObjectRepository) Restore(ctx context.Context, id uuid.UUID) erro
 
 // ExistsByName checks if a client object with the given name exists for a client
 func (r *clientObjectRepository) ExistsByName(ctx context.Context, clientID uuid.UUID, name string, excludeID *uuid.UUID) (bool, error) {
-	query := `
-		SELECT EXISTS(
-			SELECT 1 FROM client_objects
-			WHERE client_id = $1 AND name = $2 AND deleted_at IS NULL
-		)
-	`
+	query := "SELECT EXISTS(SELECT 1 FROM client_objects WHERE client_id = $1 AND name = $2 AND deleted_at IS NULL"
 	args := []interface{}{clientID, name}
 
 	if excludeID != nil {
-		query = `
-			SELECT EXISTS(
-				SELECT 1 FROM client_objects
-				WHERE client_id = $1 AND name = $2 AND id != $3 AND deleted_at IS NULL
-			)
-		`
+		query += " AND id != $3"
 		args = append(args, *excludeID)
 	}
+	query += ")"
 
 	var exists bool
 	err := r.pool.QueryRow(ctx, query, args...).Scan(&exists)
@@ -169,14 +158,7 @@ func (r *clientObjectRepository) ExistsByName(ctx context.Context, clientID uuid
 
 // HasActiveOrders checks if there are active orders for this client object
 func (r *clientObjectRepository) HasActiveOrders(ctx context.Context, clientObjectID uuid.UUID) (bool, error) {
-	query := `
-		SELECT EXISTS(
-			SELECT 1 FROM orders
-			WHERE object_id = $1 
-			AND status IN ('DRAFT', 'SCHEDULED', 'IN_PROGRESS')
-			AND deleted_at IS NULL
-		)
-	`
+	query := "SELECT EXISTS(SELECT 1 FROM orders WHERE object_id = $1 AND status IN ('DRAFT', 'SCHEDULED', 'IN_PROGRESS') AND deleted_at IS NULL)"
 	var exists bool
 	err := r.pool.QueryRow(ctx, query, clientObjectID).Scan(&exists)
 	return exists, err
@@ -184,12 +166,7 @@ func (r *clientObjectRepository) HasActiveOrders(ctx context.Context, clientObje
 
 // HasActiveEquipment checks if there is active equipment placed at this client object
 func (r *clientObjectRepository) HasActiveEquipment(ctx context.Context, clientObjectID uuid.UUID) (bool, error) {
-	query := `
-		SELECT EXISTS(
-			SELECT 1 FROM equipment
-			WHERE client_object_id = $1 AND deleted_at IS NULL
-		)
-	`
+	query := "SELECT EXISTS(SELECT 1 FROM equipment WHERE client_object_id = $1 AND deleted_at IS NULL)"
 	var exists bool
 	err := r.pool.QueryRow(ctx, query, clientObjectID).Scan(&exists)
 	return exists, err
@@ -200,12 +177,7 @@ func (r *clientObjectRepository) GetDeleteConflicts(ctx context.Context, clientO
 	conflicts := &models.DeleteConflicts{}
 
 	// Check for active orders
-	orderQuery := `
-		SELECT id FROM orders
-		WHERE object_id = $1 
-		AND status IN ('DRAFT', 'SCHEDULED', 'IN_PROGRESS')
-		AND deleted_at IS NULL
-	`
+	orderQuery := "SELECT id FROM orders WHERE object_id = $1 AND status IN ('DRAFT', 'SCHEDULED', 'IN_PROGRESS') AND deleted_at IS NULL"
 	orderRows, err := r.pool.Query(ctx, orderQuery, clientObjectID)
 	if err != nil {
 		return nil, err
@@ -224,10 +196,7 @@ func (r *clientObjectRepository) GetDeleteConflicts(ctx context.Context, clientO
 	conflicts.ActiveOrderIDs = activeOrderIDs
 
 	// Check for active equipment
-	equipmentQuery := `
-		SELECT id FROM equipment
-		WHERE client_object_id = $1 AND deleted_at IS NULL
-	`
+	equipmentQuery := "SELECT id FROM equipment WHERE client_object_id = $1 AND deleted_at IS NULL"
 	equipmentRows, err := r.pool.Query(ctx, equipmentQuery, clientObjectID)
 	if err != nil {
 		return nil, err
@@ -262,11 +231,7 @@ func (r *clientObjectRepository) GetDeleteConflicts(ctx context.Context, clientO
 func (r *clientObjectRepository) List(ctx context.Context, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error) {
 	// This is a simplified version that doesn't filter by client_id
 	// For client-specific listing, use ListByClient method
-	query := `
-		SELECT id, client_id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at
-		FROM client_objects
-		WHERE 1=1
-	`
+	query := "SELECT id, client_id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at FROM client_objects WHERE 1=1"
 	args := []interface{}{}
 
 	if !req.IncludeDeleted {
@@ -317,7 +282,11 @@ func (r *clientObjectRepository) List(ctx context.Context, req models.ClientObje
 }
 
 // ListByClient retrieves client objects for a specific client with pagination
-func (r *clientObjectRepository) ListByClient(ctx context.Context, clientID uuid.UUID, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error) {
+func (r *clientObjectRepository) ListByClient(
+	ctx context.Context,
+	clientID uuid.UUID,
+	req models.ClientObjectListRequest,
+) (*models.ClientObjectListResponse, error) {
 	// This is the original List method renamed
 	// Set defaults
 	if req.Page < 1 {
@@ -326,20 +295,18 @@ func (r *clientObjectRepository) ListByClient(ctx context.Context, clientID uuid
 	if req.PageSize < 1 {
 		req.PageSize = 20
 	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
+	const maxPageSize = 100
+	if req.PageSize > maxPageSize {
+		req.PageSize = maxPageSize
 	}
 
 	// Build base query
-	baseQuery := `
-		FROM client_objects
-		WHERE client_id = $1
-	`
+	baseQuery := "FROM client_objects WHERE client_id = $1"
 	args := []interface{}{clientID}
 
 	// Add soft-delete filter
 	if !req.IncludeDeleted {
-		baseQuery += " AND deleted_at IS NULL"
+		baseQuery += DeletedAtFilter
 	}
 
 	// Count total
@@ -352,12 +319,7 @@ func (r *clientObjectRepository) ListByClient(ctx context.Context, clientID uuid
 
 	// Build SELECT query
 	offset := (req.Page - 1) * req.PageSize
-	selectQuery := fmt.Sprintf(`
-		SELECT id, client_id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at
-		%s
-		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
-	`, baseQuery)
+	selectQuery := fmt.Sprintf("SELECT id, client_id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at %s ORDER BY created_at DESC LIMIT $2 OFFSET $3", baseQuery)
 
 	args = append(args, req.PageSize, offset)
 
@@ -401,8 +363,13 @@ func (r *clientObjectRepository) ListByClient(ctx context.Context, clientID uuid
 }
 
 // ExistsByAddress checks if a client object exists with the given address for a client
-func (r *clientObjectRepository) ExistsByAddress(ctx context.Context, clientID uuid.UUID, address string, excludeID *uuid.UUID) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM client_objects WHERE client_id = $1 AND address = $2 AND deleted_at IS NULL`
+func (r *clientObjectRepository) ExistsByAddress(
+	ctx context.Context,
+	clientID uuid.UUID,
+	address string,
+	excludeID *uuid.UUID,
+) (bool, error) {
+	query := "SELECT EXISTS(SELECT 1 FROM client_objects WHERE client_id = $1 AND address = $2 AND deleted_at IS NULL"
 	args := []interface{}{clientID, address}
 	argIndex := 3
 

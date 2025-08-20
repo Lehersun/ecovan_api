@@ -106,20 +106,24 @@ func (r *warehouseRepository) List(ctx context.Context, req models.WarehouseList
 	}
 
 	// Build pagination query
-	query := fmt.Sprintf(`
-		SELECT id, name, address, notes, created_at, updated_at, deleted_at
+	// Build the main query with pagination
+	limitParamNum := len(args) + 1
+	const offsetIncrement = 2
+	offsetParamNum := len(args) + offsetIncrement
+	mainQuery := fmt.Sprintf(`
+		SELECT id, name, address, geo_lat, geo_lng, notes, created_at, updated_at, deleted_at
 		%s
-		%s
-		ORDER BY created_at DESC
-		LIMIT $%d OFFSET $%d
-	`, baseQuery, whereClause, len(args)+1, len(args)+2)
+		ORDER BY name
+		LIMIT $%d
+		OFFSET $%d
+	`, baseQuery, limitParamNum, offsetParamNum)
 
 	// Calculate pagination
 	limit := req.PageSize
 	offset := (req.Page - 1) * req.PageSize
 	args = append(args, limit, offset)
 
-	rows, err := r.pool.Query(ctx, query, args...)
+	rows, err := r.pool.Query(ctx, mainQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list warehouses: %w", err)
 	}

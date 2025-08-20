@@ -11,6 +11,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const (
+	// DeletedAtFilter is the SQL filter for excluding soft-deleted records
+	DeletedAtFilter = " AND deleted_at IS NULL"
+)
+
 // BaseRepository provides common CRUD operations for entities
 type BaseRepository struct {
 	db *pgxpool.Pool
@@ -29,11 +34,11 @@ func (r *BaseRepository) GetByIDGeneric(
 	id uuid.UUID,
 	includeDeleted bool,
 	scanFunc func(...interface{}) error,
-) (*interface{}, error) {
+) (interface{}, error) {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE id = $1", strings.Join(columns, ", "), tableName)
 
 	if !includeDeleted {
-		query += " AND deleted_at IS NULL"
+		query += DeletedAtFilter
 	}
 
 	var result interface{}
@@ -45,7 +50,7 @@ func (r *BaseRepository) GetByIDGeneric(
 		return nil, fmt.Errorf("failed to get %s: %w", tableName, err)
 	}
 
-	return &result, nil
+	return result, nil
 }
 
 // SoftDeleteGeneric marks an entity as deleted by setting deleted_at

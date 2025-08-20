@@ -48,18 +48,14 @@ func (h *clientObjectHandler) ListClientObjects(w http.ResponseWriter, r *http.R
 	// Parse query parameters
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
-	includeDeleted := r.URL.Query().Get("includeDeleted") == "true"
-
-	// Set defaults
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 {
+	if pageSize <= 0 {
 		pageSize = 20
 	}
-	if pageSize > 100 {
-		pageSize = 100
+	const maxPageSize = 100
+	if pageSize > maxPageSize {
+		pageSize = maxPageSize
 	}
+	includeDeleted := r.URL.Query().Get("includeDeleted") == QueryParamIncludeDeleted
 
 	req := models.ClientObjectListRequest{
 		Page:           page,
@@ -103,12 +99,12 @@ func (h *clientObjectHandler) CreateClientObject(w http.ResponseWriter, r *http.
 	// Create client object
 	response, err := h.clientObjectService.Create(r.Context(), clientID, req)
 	if err != nil {
-		if err.Error() == "client not found" {
+		if err.Error() == ErrClientNotFound {
 			WriteNotFound(w, "Client not found")
 			return
 		}
-		if err.Error()[:len("client object with name")] == "client object with name" {
-			WriteConflict(w, err.Error())
+		if err.Error()[:len(ErrClientObjectNamePrefix)] == ErrClientObjectNamePrefix {
+			WriteConflict(w, "Client object with this name already exists for this client")
 			return
 		}
 		WriteInternalError(w, "Failed to create client object")
@@ -136,17 +132,21 @@ func (h *clientObjectHandler) GetClientObject(w http.ResponseWriter, r *http.Req
 	}
 
 	// Check if includeDeleted is requested
-	includeDeleted := r.URL.Query().Get("includeDeleted") == "true"
+	includeDeleted := r.URL.Query().Get("includeDeleted") == QueryParamIncludeDeleted
 
 	// Get client object
 	response, err := h.clientObjectService.GetByID(r.Context(), clientID, id, includeDeleted)
 	if err != nil {
-		if err.Error() == "client not found" {
+		if err.Error() == ErrClientNotFound {
 			WriteNotFound(w, "Client not found")
 			return
 		}
-		if err.Error() == "client object not found" {
+		if err.Error() == ErrClientObjectNotFound {
 			WriteNotFound(w, "Client object not found")
+			return
+		}
+		if err.Error()[:len(ErrClientObjectNamePrefix)] == ErrClientObjectNamePrefix {
+			WriteConflict(w, "Client object with this name already exists for this client")
 			return
 		}
 		WriteInternalError(w, "Failed to get client object")
@@ -189,7 +189,7 @@ func (h *clientObjectHandler) UpdateClientObject(w http.ResponseWriter, r *http.
 	// Update client object
 	response, err := h.clientObjectService.Update(r.Context(), clientID, id, req)
 	if err != nil {
-		if err.Error() == "client not found" {
+		if err.Error() == ErrClientNotFound {
 			WriteNotFound(w, "Client not found")
 			return
 		}
@@ -197,7 +197,7 @@ func (h *clientObjectHandler) UpdateClientObject(w http.ResponseWriter, r *http.
 			WriteNotFound(w, "Client object not found")
 			return
 		}
-		if err.Error()[:len("client object with name")] == "client object with name" {
+		if err.Error()[:len(ErrClientObjectNamePrefix)] == ErrClientObjectNamePrefix {
 			WriteConflict(w, err.Error())
 			return
 		}
@@ -228,7 +228,7 @@ func (h *clientObjectHandler) DeleteClientObject(w http.ResponseWriter, r *http.
 	// Delete client object
 	err = h.clientObjectService.Delete(r.Context(), clientID, id)
 	if err != nil {
-		if err.Error() == "client not found" {
+		if err.Error() == ErrClientNotFound {
 			WriteNotFound(w, "Client not found")
 			return
 		}
@@ -236,7 +236,7 @@ func (h *clientObjectHandler) DeleteClientObject(w http.ResponseWriter, r *http.
 			WriteNotFound(w, "Client object not found")
 			return
 		}
-		if err.Error()[:len("cannot delete client object")] == "cannot delete client object" {
+		if err.Error()[:len(ErrCannotDeleteClientObject)] == ErrCannotDeleteClientObject {
 			WriteConflict(w, err.Error())
 			return
 		}
@@ -267,7 +267,7 @@ func (h *clientObjectHandler) RestoreClientObject(w http.ResponseWriter, r *http
 	// Restore client object
 	response, err := h.clientObjectService.Restore(r.Context(), clientID, id)
 	if err != nil {
-		if err.Error() == "client not found" {
+		if err.Error() == ErrClientNotFound {
 			WriteNotFound(w, "Client not found")
 			return
 		}
@@ -275,7 +275,7 @@ func (h *clientObjectHandler) RestoreClientObject(w http.ResponseWriter, r *http
 			WriteNotFound(w, "Client object not found")
 			return
 		}
-		if err.Error()[:len("client object with name")] == "client object with name" {
+		if err.Error()[:len(ErrClientObjectNamePrefix)] == ErrClientObjectNamePrefix {
 			WriteConflict(w, err.Error())
 			return
 		}

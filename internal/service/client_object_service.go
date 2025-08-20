@@ -26,17 +26,19 @@ func NewClientObjectService(clientObjectRepo port.ClientObjectRepository, client
 	}
 }
 
-// Create creates a new client object for a client
-func (s *clientObjectService) Create(ctx context.Context, clientID uuid.UUID, req models.CreateClientObjectRequest) (*models.ClientObjectResponse, error) {
-	// Validate request
-	if err := s.validate.Struct(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
-	}
-
-	// Verify client exists
-	_, err := s.clientRepo.GetByID(ctx, clientID, false)
+// Create creates a new client object for a specific client
+func (s *clientObjectService) Create(
+	ctx context.Context,
+	clientID uuid.UUID,
+	req models.CreateClientObjectRequest,
+) (*models.ClientObjectResponse, error) {
+	// Validate client exists
+	client, err := s.clientRepo.GetByID(ctx, clientID, false)
 	if err != nil {
-		return nil, fmt.Errorf("client not found: %w", err)
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
+	if client == nil {
+		return nil, fmt.Errorf("client not found")
 	}
 
 	// Check if name already exists for this client
@@ -45,7 +47,7 @@ func (s *clientObjectService) Create(ctx context.Context, clientID uuid.UUID, re
 		return nil, fmt.Errorf("failed to check name existence: %w", err)
 	}
 	if exists {
-		return nil, fmt.Errorf("client object with name '%s' already exists for this client", req.Name)
+		return nil, fmt.Errorf("client object with name %s already exists for this client", req.Name)
 	}
 
 	// Create client object
@@ -58,21 +60,23 @@ func (s *clientObjectService) Create(ctx context.Context, clientID uuid.UUID, re
 	return &response, nil
 }
 
-// GetByID retrieves a client object by ID
-func (s *clientObjectService) GetByID(ctx context.Context, clientID, id uuid.UUID, includeDeleted bool) (*models.ClientObjectResponse, error) {
-	// Verify client exists
-	_, err := s.clientRepo.GetByID(ctx, clientID, false)
-	if err != nil {
-		return nil, fmt.Errorf("client not found: %w", err)
-	}
-
+// GetByID retrieves a client object by ID for a specific client
+func (s *clientObjectService) GetByID(
+	ctx context.Context,
+	clientID,
+	id uuid.UUID,
+	includeDeleted bool,
+) (*models.ClientObjectResponse, error) {
 	// Get client object
 	clientObject, err := s.clientObjectRepo.GetByID(ctx, id, includeDeleted)
 	if err != nil {
-		return nil, fmt.Errorf("client object not found: %w", err)
+		return nil, fmt.Errorf("failed to get client object: %w", err)
+	}
+	if clientObject == nil {
+		return nil, fmt.Errorf("client object not found")
 	}
 
-	// Verify the client object belongs to the specified client
+	// Verify it belongs to the specified client
 	if clientObject.ClientID != clientID {
 		return nil, fmt.Errorf("client object not found")
 	}
@@ -82,16 +86,18 @@ func (s *clientObjectService) GetByID(ctx context.Context, clientID, id uuid.UUI
 }
 
 // List retrieves client objects for a specific client with pagination
-func (s *clientObjectService) List(ctx context.Context, clientID uuid.UUID, req models.ClientObjectListRequest) (*models.ClientObjectListResponse, error) {
-	// Verify client exists
-	_, err := s.clientRepo.GetByID(ctx, clientID, false)
+func (s *clientObjectService) List(
+	ctx context.Context,
+	clientID uuid.UUID,
+	req models.ClientObjectListRequest,
+) (*models.ClientObjectListResponse, error) {
+	// Validate client exists
+	client, err := s.clientRepo.GetByID(ctx, clientID, false)
 	if err != nil {
-		return nil, fmt.Errorf("client not found: %w", err)
+		return nil, fmt.Errorf("failed to get client: %w", err)
 	}
-
-	// Validate request
-	if err := s.validate.Struct(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+	if client == nil {
+		return nil, fmt.Errorf("client not found")
 	}
 
 	// Set defaults
@@ -101,8 +107,9 @@ func (s *clientObjectService) List(ctx context.Context, clientID uuid.UUID, req 
 	if req.PageSize < 1 {
 		req.PageSize = 20
 	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
+	const maxPageSize = 100
+	if req.PageSize > maxPageSize {
+		req.PageSize = maxPageSize
 	}
 
 	// Get client objects
@@ -114,26 +121,23 @@ func (s *clientObjectService) List(ctx context.Context, clientID uuid.UUID, req 
 	return response, nil
 }
 
-// Update updates an existing client object
-func (s *clientObjectService) Update(ctx context.Context, clientID, id uuid.UUID, req models.UpdateClientObjectRequest) (*models.ClientObjectResponse, error) {
-	// Validate request
-	if err := s.validate.Struct(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
-	}
-
-	// Verify client exists
-	_, err := s.clientRepo.GetByID(ctx, clientID, false)
-	if err != nil {
-		return nil, fmt.Errorf("client not found: %w", err)
-	}
-
+// Update updates an existing client object for a specific client
+func (s *clientObjectService) Update(
+	ctx context.Context,
+	clientID,
+	id uuid.UUID,
+	req models.UpdateClientObjectRequest,
+) (*models.ClientObjectResponse, error) {
 	// Get existing client object
 	clientObject, err := s.clientObjectRepo.GetByID(ctx, id, false)
 	if err != nil {
-		return nil, fmt.Errorf("client object not found: %w", err)
+		return nil, fmt.Errorf("failed to get client object: %w", err)
+	}
+	if clientObject == nil {
+		return nil, fmt.Errorf("client object not found")
 	}
 
-	// Verify the client object belongs to the specified client
+	// Verify it belongs to the specified client
 	if clientObject.ClientID != clientID {
 		return nil, fmt.Errorf("client object not found")
 	}
@@ -144,7 +148,7 @@ func (s *clientObjectService) Update(ctx context.Context, clientID, id uuid.UUID
 		return nil, fmt.Errorf("failed to check name existence: %w", err)
 	}
 	if exists {
-		return nil, fmt.Errorf("client object with name '%s' already exists for this client", req.Name)
+		return nil, fmt.Errorf("client object with name %s already exists for this client", req.Name)
 	}
 
 	// Update client object

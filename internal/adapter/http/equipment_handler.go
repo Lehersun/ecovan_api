@@ -98,7 +98,7 @@ func (h *EquipmentHandler) GetEquipment(w http.ResponseWriter, r *http.Request) 
 	// Call service
 	equipment, err := h.equipmentService.GetByID(r.Context(), id)
 	if err != nil {
-		if err.Error() == "equipment not found" {
+		if err.Error() == ErrEquipmentNotFound {
 			WriteNotFound(w, "Equipment not found")
 			return
 		}
@@ -178,7 +178,7 @@ func (h *EquipmentHandler) UpdateEquipment(w http.ResponseWriter, r *http.Reques
 				"Cannot place equipment at both client object and warehouse simultaneously")
 			return
 		}
-		if err.Error() == "equipment not found" {
+		if err.Error() == ErrEquipmentNotFound {
 			WriteNotFound(w, "Equipment not found")
 			return
 		}
@@ -213,7 +213,7 @@ func (h *EquipmentHandler) DeleteEquipment(w http.ResponseWriter, r *http.Reques
 	// Call service
 	err = h.equipmentService.Delete(r.Context(), id)
 	if err != nil {
-		if err.Error() == "equipment not found" {
+		if err.Error() == ErrEquipmentNotFound {
 			WriteNotFound(w, "Equipment not found")
 			return
 		}
@@ -244,7 +244,7 @@ func (h *EquipmentHandler) RestoreEquipment(w http.ResponseWriter, r *http.Reque
 	// Call service
 	equipment, err := h.equipmentService.Restore(r.Context(), id)
 	if err != nil {
-		if err.Error() == "equipment not found" {
+		if err.Error() == ErrEquipmentNotFound {
 			WriteNotFound(w, "Equipment not found")
 			return
 		}

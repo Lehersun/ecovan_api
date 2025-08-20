@@ -123,18 +123,21 @@ func (r *clientRepository) List(ctx context.Context, req models.ClientListReques
 	limit := req.PageSize
 	offset := (req.Page - 1) * req.PageSize
 
-	// Build pagination query
-	query := fmt.Sprintf(`
+	// Build the main query with pagination
+	limitParamNum := len(args) + 1
+	const offsetIncrement = 2
+	offsetParamNum := len(args) + offsetIncrement
+	mainQuery := fmt.Sprintf(`
 		SELECT id, name, tax_id, email, phone, notes, created_at, updated_at, deleted_at
-		FROM clients
 		%s
-		ORDER BY created_at DESC
-		LIMIT $%d OFFSET $%d
-	`, whereClause, len(args)+1, len(args)+2)
+		ORDER BY name
+		LIMIT $%d
+		OFFSET $%d
+	`, whereClause, limitParamNum, offsetParamNum)
 
 	args = append(args, limit, offset)
 
-	rows, err := r.db.Query(ctx, query, args...)
+	rows, err := r.db.Query(ctx, mainQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list clients: %w", err)
 	}
