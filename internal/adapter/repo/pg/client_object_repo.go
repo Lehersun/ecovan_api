@@ -235,7 +235,7 @@ func (r *clientObjectRepository) List(ctx context.Context, req models.ClientObje
 	args := []interface{}{}
 
 	if !req.IncludeDeleted {
-		query += " AND deleted_at IS NULL"
+		query += DeletedAtFilter
 	}
 
 	query += " ORDER BY created_at DESC LIMIT $1 OFFSET $2"
@@ -265,7 +265,7 @@ func (r *clientObjectRepository) List(ctx context.Context, req models.ClientObje
 	// Count total
 	countQuery := "SELECT COUNT(*) FROM client_objects WHERE 1=1"
 	if !req.IncludeDeleted {
-		countQuery += " AND deleted_at IS NULL"
+		countQuery += DeletedAtFilter
 	}
 	var total int64
 	err = r.pool.QueryRow(ctx, countQuery).Scan(&total)

@@ -193,7 +193,7 @@ func (h *clientObjectHandler) UpdateClientObject(w http.ResponseWriter, r *http.
 			WriteNotFound(w, "Client not found")
 			return
 		}
-		if err.Error() == "client object not found" {
+		if err.Error() == ErrClientObjectNotFound {
 			WriteNotFound(w, "Client object not found")
 			return
 		}
@@ -232,7 +232,7 @@ func (h *clientObjectHandler) DeleteClientObject(w http.ResponseWriter, r *http.
 			WriteNotFound(w, "Client not found")
 			return
 		}
-		if err.Error() == "client object not found" {
+		if err.Error() == ErrClientObjectNotFound {
 			WriteNotFound(w, "Client object not found")
 			return
 		}
@@ -271,7 +271,7 @@ func (h *clientObjectHandler) RestoreClientObject(w http.ResponseWriter, r *http
 			WriteNotFound(w, "Client not found")
 			return
 		}
-		if err.Error() == "client object not found" {
+		if err.Error() == ErrClientObjectNotFound {
 			WriteNotFound(w, "Client object not found")
 			return
 		}

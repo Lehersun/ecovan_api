@@ -62,7 +62,7 @@ func (r *clientRepository) GetByID(ctx context.Context, id uuid.UUID, includeDel
 	`
 
 	if !includeDeleted {
-		query += " AND deleted_at IS NULL"
+		query += DeletedAtFilter
 	}
 
 	var client models.Client
@@ -108,7 +108,7 @@ func (r *clientRepository) List(ctx context.Context, req models.ClientListReques
 
 	// Add soft-delete filter
 	if !req.IncludeDeleted {
-		whereClause += " AND deleted_at IS NULL"
+		whereClause += DeletedAtFilter
 	}
 
 	// Count total

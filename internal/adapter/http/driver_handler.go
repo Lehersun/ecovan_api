@@ -53,7 +53,7 @@ func (h *DriverHandler) ListDrivers(w http.ResponseWriter, r *http.Request) {
 		qPtr = &q
 	}
 
-	includeDeleted := r.URL.Query().Get("includeDeleted") == "true"
+	includeDeleted := r.URL.Query().Get("includeDeleted") == QueryParamIncludeDeleted
 
 	// Build request
 	req := models.DriverListRequest{

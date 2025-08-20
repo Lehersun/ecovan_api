@@ -54,7 +54,7 @@ func (r *driverRepository) GetByID(ctx context.Context, id uuid.UUID, includeDel
 		FROM drivers WHERE id = $1
 	`
 	if !includeDeleted {
-		query += " AND deleted_at IS NULL"
+		query += DeletedAtFilter
 	}
 
 	var driver models.Driver
