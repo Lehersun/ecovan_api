@@ -25,7 +25,9 @@ func NewDriverHandler(driverService port.DriverService) *DriverHandler {
 	}
 }
 
-// ListDrivers handles GET /api/v1/drivers
+// ListDrivers handles GET /v1/drivers
+//
+//nolint:dupl // Similar pattern but with different service calls and error messages
 func (h *DriverHandler) ListDrivers(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
@@ -75,7 +77,7 @@ func (h *DriverHandler) ListDrivers(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, drivers)
 }
 
-// GetDriver handles GET /api/v1/drivers/{id}
+// GetDriver handles GET /v1/drivers/{id}
 func (h *DriverHandler) GetDriver(w http.ResponseWriter, r *http.Request) {
 	// Parse driver ID
 	idStr := chi.URLParam(r, "id")
@@ -100,7 +102,7 @@ func (h *DriverHandler) GetDriver(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, driver)
 }
 
-// CreateDriver handles POST /api/v1/drivers
+// CreateDriver handles POST /v1/drivers
 //
 //nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *DriverHandler) CreateDriver(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +134,7 @@ func (h *DriverHandler) CreateDriver(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusCreated, driver)
 }
 
-// UpdateDriver handles PUT /api/v1/drivers/{id}
+// UpdateDriver handles PUT /v1/drivers/{id}
 //
 //nolint:dupl // Similar pattern across handlers but with different business logic
 func (h *DriverHandler) UpdateDriver(w http.ResponseWriter, r *http.Request) {
@@ -176,7 +178,7 @@ func (h *DriverHandler) UpdateDriver(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, driver)
 }
 
-// DeleteDriver handles DELETE /api/v1/drivers/{id}
+// DeleteDriver handles DELETE /v1/drivers/{id}
 func (h *DriverHandler) DeleteDriver(w http.ResponseWriter, r *http.Request) {
 	// Parse driver ID
 	idStr := chi.URLParam(r, "id")
@@ -205,7 +207,7 @@ func (h *DriverHandler) DeleteDriver(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// RestoreDriver handles POST /api/v1/drivers/{id}/restore
+// RestoreDriver handles POST /v1/drivers/{id}/restore
 func (h *DriverHandler) RestoreDriver(w http.ResponseWriter, r *http.Request) {
 	// Parse driver ID
 	idStr := chi.URLParam(r, "id")
@@ -234,7 +236,9 @@ func (h *DriverHandler) RestoreDriver(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, driver)
 }
 
-// ListAvailableDrivers handles GET /api/v1/drivers/available
+// ListAvailableDrivers handles GET /v1/drivers/available
+//
+//nolint:dupl // Similar pattern but with different service calls and error messages
 func (h *DriverHandler) ListAvailableDrivers(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
@@ -262,7 +266,7 @@ func (h *DriverHandler) ListAvailableDrivers(w http.ResponseWriter, r *http.Requ
 		qPtr = &q
 	}
 
-	includeDeleted := r.URL.Query().Get("includeDeleted") == "true"
+	includeDeleted := r.URL.Query().Get("includeDeleted") == QueryParamIncludeDeleted
 
 	// Build request
 	req := models.DriverListRequest{

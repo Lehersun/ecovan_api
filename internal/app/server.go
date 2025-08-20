@@ -263,6 +263,7 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 		})
 
 		// Protected driver management endpoints
+		//nolint:dupl // Similar route pattern across resources but with different handlers and services
 		r.Route("/drivers", func(r chi.Router) {
 			// Create driver handler and middleware
 			driverRepo := pg.NewDriverRepository(db.GetPool())

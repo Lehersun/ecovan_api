@@ -206,22 +206,69 @@ func (r *driverRepository) ExistsByLicenseNo(ctx context.Context, licenseNo stri
 	return exists, nil
 }
 
-// ListAvailable retrieves available drivers (not assigned to any transport)
-func (r *driverRepository) ListAvailable(ctx context.Context) ([]models.Driver, error) {
-	query := `
-		SELECT id, full_name, phone, license_no, license_class, photo, created_at, updated_at, deleted_at
-		FROM drivers
-		WHERE deleted_at IS NULL
-		ORDER BY full_name
+// ListAvailable retrieves available drivers (not assigned to any transport) with pagination and filtering
+func (r *driverRepository) ListAvailable(ctx context.Context, req models.DriverListRequest) (*models.DriverListResponse, error) {
+	// Build base query to exclude drivers assigned to transport
+	baseQuery := `
+		FROM drivers d
+		WHERE d.deleted_at IS NULL
+		AND NOT EXISTS (
+			SELECT 1 FROM transports t 
+			WHERE t.current_driver_id = d.id 
+			AND t.deleted_at IS NULL
+		)
 	`
+	whereClauses := []string{}
+	args := []interface{}{}
+	argIndex := 1
 
-	rows, err := r.pool.Query(ctx, query)
+	// Add license class filter
+	if req.LicenseClass != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("d.license_class = $%d", argIndex))
+		args = append(args, *req.LicenseClass)
+		argIndex++
+	}
+
+	// Add search query filter
+	if req.Q != nil && *req.Q != "" {
+		searchQuery := fmt.Sprintf("(d.full_name ILIKE $%d OR d.license_no ILIKE $%d)", argIndex, argIndex)
+		whereClauses = append(whereClauses, searchQuery)
+		args = append(args, "%"+*req.Q+"%")
+		argIndex++
+	}
+
+	// Build WHERE clause
+	whereClause := r.BuildWhereClause(whereClauses)
+	if whereClause != "" {
+		baseQuery += " AND " + whereClause[6:] // Remove "WHERE " prefix
+	}
+
+	// Count total
+	total, err := r.CountTotal(ctx, baseQuery, "", args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count available drivers: %w", err)
+	}
+
+	// Build pagination query
+	query := fmt.Sprintf(`
+		SELECT d.id, d.full_name, d.phone, d.license_no, d.license_class, d.photo, d.created_at, d.updated_at, d.deleted_at
+		%s
+		ORDER BY d.full_name
+		LIMIT $%d OFFSET $%d
+	`, baseQuery, argIndex, argIndex+1)
+
+	// Calculate pagination
+	limit := req.PageSize
+	offset := (req.Page - 1) * req.PageSize
+	args = append(args, limit, offset)
+
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list available drivers: %w", err)
 	}
 	defer rows.Close()
 
-	var drivers []models.Driver
+	var items []models.DriverResponse
 	for rows.Next() {
 		var driver models.Driver
 		err := rows.Scan(
@@ -231,14 +278,19 @@ func (r *driverRepository) ListAvailable(ctx context.Context) ([]models.Driver, 
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan driver: %w", err)
 		}
-		drivers = append(drivers, driver)
+		items = append(items, driver.ToResponse())
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating over available drivers: %w", err)
 	}
 
-	return drivers, nil
+	return &models.DriverListResponse{
+		Items:    items,
+		Total:    total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}, nil
 }
 
 // IsAssignedToTransport checks if driver is currently assigned to a transport
