@@ -146,7 +146,7 @@ func (r *clientRepository) List(ctx context.Context, req models.ClientListReques
 	}
 	defer rows.Close()
 
-	var clients []models.Client
+	clients := make([]models.Client, 0)
 	for rows.Next() {
 		var client models.Client
 		err := rows.Scan(

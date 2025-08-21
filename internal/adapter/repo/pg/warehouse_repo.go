@@ -129,7 +129,7 @@ func (r *warehouseRepository) List(ctx context.Context, req models.WarehouseList
 	}
 	defer rows.Close()
 
-	var warehouses []models.Warehouse
+	warehouses := make([]models.Warehouse, 0)
 	for rows.Next() {
 		var warehouse models.Warehouse
 		err := rows.Scan(

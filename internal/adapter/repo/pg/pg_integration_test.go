@@ -141,7 +141,7 @@ func MakeOrder(t *testing.T, ctx context.Context, db DBExecutor, clientID, clien
 		VALUES ($1, $2, $3, $4, $5)
 	`
 
-	_, err := db.Exec(ctx, query, orderID, clientID, clientObjectID, "2025-01-01", "DRAFT")
+	_, err := db.Exec(ctx, query, orderID, clientID, clientObjectID, time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), "DRAFT")
 	if err != nil {
 		t.Fatalf("Failed to create order: %v", err)
 	}

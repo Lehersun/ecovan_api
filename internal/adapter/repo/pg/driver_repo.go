@@ -130,7 +130,7 @@ func (r *driverRepository) List(ctx context.Context, req models.DriverListReques
 	}
 	defer rows.Close()
 
-	var items []models.DriverResponse
+	items := make([]models.DriverResponse, 0)
 	for rows.Next() {
 		var driver models.Driver
 		err := rows.Scan(
@@ -268,7 +268,7 @@ func (r *driverRepository) ListAvailable(ctx context.Context, req models.DriverL
 	}
 	defer rows.Close()
 
-	var items []models.DriverResponse
+	items := make([]models.DriverResponse, 0)
 	for rows.Next() {
 		var driver models.Driver
 		err := rows.Scan(

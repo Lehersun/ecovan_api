@@ -250,7 +250,7 @@ func (r *clientObjectRepository) List(ctx context.Context, req models.ClientObje
 	}
 	defer rows.Close()
 
-	var items []models.ClientObjectResponse
+	items := make([]models.ClientObjectResponse, 0)
 	for rows.Next() {
 		var co models.ClientObject
 		err := rows.Scan(
@@ -331,7 +331,7 @@ func (r *clientObjectRepository) ListByClient(
 	}
 	defer rows.Close()
 
-	var items []models.ClientObjectResponse
+	items := make([]models.ClientObjectResponse, 0)
 	for rows.Next() {
 		var co models.ClientObject
 		err := rows.Scan(

@@ -174,7 +174,7 @@ func (r *transportRepository) List(ctx context.Context, req models.TransportList
 	}
 	defer rows.Close()
 
-	var transports []models.Transport
+	transports := make([]models.Transport, 0)
 	for rows.Next() {
 		var transport models.Transport
 		err := rows.Scan(
@@ -372,7 +372,7 @@ func (r *transportRepository) GetAvailable(ctx context.Context, req models.Trans
 	}
 	defer rows.Close()
 
-	var transports []models.Transport
+	transports := make([]models.Transport, 0)
 	for rows.Next() {
 		var transport models.Transport
 		err := rows.Scan(

@@ -245,7 +245,7 @@ func (r *orderRepository) List(ctx context.Context, req models.OrderListRequest)
 	}
 	defer rows.Close()
 
-	var orders []models.Order
+	orders := make([]models.Order, 0)
 	for rows.Next() {
 		var order models.Order
 		err := rows.Scan(
@@ -346,7 +346,7 @@ func (r *orderRepository) GetActiveOrdersByObject(ctx context.Context, objectID 
 	}
 	defer rows.Close()
 
-	var orders []models.Order
+	orders := make([]models.Order, 0)
 	for rows.Next() {
 		var order models.Order
 		err := rows.Scan(

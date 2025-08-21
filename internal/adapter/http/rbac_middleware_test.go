@@ -42,7 +42,7 @@ func TestRBACMiddleware_RequireAdminRole(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/test", http.NoBody)
-			ctx := context.WithValue(req.Context(), userRoleKey, tt.userRole)
+			ctx := context.WithValue(req.Context(), UserRoleKey, tt.userRole)
 			req = req.WithContext(ctx)
 
 			rr := httptest.NewRecorder()
@@ -92,7 +92,7 @@ func TestRBACMiddleware_RequireReadAccess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/test", http.NoBody)
-			ctx := context.WithValue(req.Context(), userRoleKey, tt.userRole)
+			ctx := context.WithValue(req.Context(), UserRoleKey, tt.userRole)
 			req = req.WithContext(ctx)
 
 			rr := httptest.NewRecorder()
@@ -142,7 +142,7 @@ func TestRBACMiddleware_RequireWriteAccess(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("POST", "/test", http.NoBody)
-			ctx := context.WithValue(req.Context(), userRoleKey, tt.userRole)
+			ctx := context.WithValue(req.Context(), UserRoleKey, tt.userRole)
 			req = req.WithContext(ctx)
 
 			rr := httptest.NewRecorder()

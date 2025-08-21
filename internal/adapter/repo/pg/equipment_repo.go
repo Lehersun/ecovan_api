@@ -155,7 +155,7 @@ func (r *equipmentRepository) List(ctx context.Context, req models.EquipmentList
 	}
 	defer rows.Close()
 
-	var items []models.EquipmentResponse
+	items := make([]models.EquipmentResponse, 0)
 	for rows.Next() {
 		var equipment models.Equipment
 		err := rows.Scan(

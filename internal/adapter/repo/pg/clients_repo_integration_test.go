@@ -161,16 +161,16 @@ func TestClientsRepository_CRUDOperations(t *testing.T) {
 
 func TestClientsRepository_SearchAndPagination(t *testing.T) {
 	WithTx(t, func(ctx context.Context, tx pgx.Tx) {
-		// Create multiple test clients
+		// Create multiple test clients with unique names
 		clients := []struct {
 			name  string
 			email string
 			phone string
 		}{
-			{"Alpha Company", "alpha@company.com", "+1111111111"},
-			{"Beta Corporation", "beta@corp.com", "+2222222222"},
-			{"Gamma Industries", "gamma@industries.com", "+3333333333"},
-			{"Delta Services", "delta@services.com", "+4444444444"},
+			{"SearchTest Alpha Company", "search-alpha@company.com", "+1111111111"},
+			{"SearchTest Beta Corporation", "search-beta@corp.com", "+2222222222"},
+			{"SearchTest Gamma Industries", "search-gamma@industries.com", "+3333333333"},
+			{"SearchTest Delta Services", "search-delta@services.com", "+4444444444"},
 		}
 
 		for _, client := range clients {
@@ -182,27 +182,27 @@ func TestClientsRepository_SearchAndPagination(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		// Test search by name
+		// Test search by name - should find only Alpha Company
 		query := `SELECT COUNT(*) FROM clients WHERE name ILIKE $1 AND deleted_at IS NULL`
 		var count int
-		err := tx.QueryRow(ctx, query, "%Company%").Scan(&count)
+		err := tx.QueryRow(ctx, query, "%Alpha Company%").Scan(&count)
 		require.NoError(t, err)
-		assert.Equal(t, 1, count) // Only Alpha Company (Beta Corporation doesn't contain "Company")
+		assert.Equal(t, 1, count)
 
-		// Test search by email
+		// Test search by email - should find only Beta Corporation
 		query = `SELECT COUNT(*) FROM clients WHERE email ILIKE $1 AND deleted_at IS NULL`
-		err = tx.QueryRow(ctx, query, "%corp%").Scan(&count)
+		err = tx.QueryRow(ctx, query, "%search-beta%").Scan(&count)
 		require.NoError(t, err)
-		assert.Equal(t, 1, count) // Beta Corporation
+		assert.Equal(t, 1, count)
 
-		// Test pagination
-		query = `SELECT COUNT(*) FROM clients WHERE deleted_at IS NULL`
+		// Test total count of our test clients
+		query = `SELECT COUNT(*) FROM clients WHERE name LIKE 'SearchTest%' AND deleted_at IS NULL`
 		err = tx.QueryRow(ctx, query).Scan(&count)
 		require.NoError(t, err)
 		assert.Equal(t, 4, count)
 
 		// Test pagination with limit
-		query = `SELECT name FROM clients WHERE deleted_at IS NULL ORDER BY name LIMIT 2`
+		query = `SELECT name FROM clients WHERE name LIKE 'SearchTest%' AND deleted_at IS NULL ORDER BY name LIMIT 2`
 		rows, err := tx.Query(ctx, query)
 		require.NoError(t, err)
 		defer rows.Close()
@@ -215,8 +215,8 @@ func TestClientsRepository_SearchAndPagination(t *testing.T) {
 			names = append(names, name)
 		}
 		assert.Equal(t, 2, len(names))
-		assert.Equal(t, "Alpha Company", names[0])
-		assert.Equal(t, "Beta Corporation", names[1])
+		assert.Equal(t, "SearchTest Alpha Company", names[0])
+		assert.Equal(t, "SearchTest Beta Corporation", names[1])
 	})
 }
 

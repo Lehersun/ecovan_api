@@ -25,8 +25,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object using the helper functions
-		clientID := MakeClient(t, ctx, TestPool, "Test Company")
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "Main Office")
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest Company 1")
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest Main Office 1")
 
 		// Create test order using the repository
 		order := models.Order{
@@ -59,8 +59,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object
-		clientID := MakeClient(t, ctx, TestPool, "Test Company 2")
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "Main Office 2")
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest Company 2")
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest Main Office 2")
 
 		// Create test orders using the repository
 		order1 := models.Order{
@@ -105,8 +105,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object
-		clientID := MakeClient(t, ctx, TestPool, "Test Company 3")
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "Main Office 3")
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest Company 3")
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest Main Office 3")
 
 		// Create test order using the repository
 		order := models.Order{
@@ -141,8 +141,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object
-		clientID := MakeClient(t, ctx, TestPool, "Test Company 4")
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "Main Office 4")
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest Company 4")
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest Main Office 4")
 
 		// Create test order using the repository
 		order := models.Order{
@@ -185,8 +185,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object
-		clientID := MakeClient(t, ctx, TestPool, "Test Company 5")
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "Main Office 5")
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest Company 5")
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest Main Office 5")
 
 		// Create test order
 		order := models.Order{
@@ -227,7 +227,7 @@ func TestOrderRepository_ExistsByClientAndObject(t *testing.T) {
 	t.Run("No existing order", func(t *testing.T) {
 		ctx := context.Background()
 
-		clientID := MakeClient(t, ctx, TestPool, "Test Company No Orders")
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest Company No Orders")
 		objectID := MakeClientObject(t, ctx, TestPool, clientID, "Main Office No Orders")
 
 		exists, err := orderRepo.ExistsByClientAndObject(ctx, clientID, objectID, nil)
@@ -238,7 +238,7 @@ func TestOrderRepository_ExistsByClientAndObject(t *testing.T) {
 	t.Run("With existing order", func(t *testing.T) {
 		ctx := context.Background()
 
-		clientID := MakeClient(t, ctx, TestPool, "Test Company With Orders")
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest Company With Orders")
 		objectID := MakeClientObject(t, ctx, TestPool, clientID, "Main Office With Orders")
 
 		// Create test order using the repository
