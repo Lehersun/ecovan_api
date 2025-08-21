@@ -29,7 +29,20 @@ Authorization: Bearer <jwt_token>
 - **Authentication:** None required
 - **Response:** 200 OK with metrics data
 
-### 2. Authentication
+### 2. API Documentation
+#### GET `/api/v1/docs`
+- **Description:** OpenAPI specification in YAML format
+- **Authentication:** None required
+- **Response:** 200 OK with OpenAPI 3.0 specification
+- **Use Case:** For API client generation, integration tools, and programmatic access
+
+#### GET `/api/v1/docs/ui`
+- **Description:** Interactive Swagger UI for API exploration
+- **Authentication:** None required
+- **Response:** 200 OK with HTML page containing Swagger UI
+- **Use Case:** Interactive API documentation and testing interface
+
+### 3. Authentication
 #### POST `/auth/login`
 - **Description:** User authentication
 - **Authentication:** None required
@@ -60,7 +73,7 @@ Authorization: Bearer <jwt_token>
 ```
 - **Response:** 200 OK with new access token
 
-### 3. User Management
+### 4. User Management
 #### GET `/users`
 - **Description:** List all users
 - **Authentication:** Required (Admin only)
@@ -70,7 +83,7 @@ Authorization: Bearer <jwt_token>
   - `includeDeleted` (bool): Include soft-deleted users
 - **Response:** 200 OK with paginated user list
 
-### 4. Client Management
+### 5. Client Management
 #### GET `/clients`
 - **Description:** List all clients
 - **Authentication:** Required (Read access)
@@ -310,10 +323,14 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "plateNo": "ABC123",
+  "brand": "Mercedes",
+  "model": "Sprinter",
   "capacityL": 2000,
   "status": "IN_WORK"
 }
 ```
+- **Required Fields:** plateNo, brand, model, capacityL
+- **Brand & Model:** Vehicle manufacturer and model (1-50 characters each)
 - **Statuses:** IN_WORK, REPAIR
 - **Response:** 201 Created with transport details
 
@@ -462,8 +479,10 @@ Authorization: Bearer <jwt_token>
 - **Warehouse Assignment:** Equipment must be assigned to a valid warehouse
 
 ### Transport Management
-- **Driver Assignment:** Transport can be assigned to available drivers
-- **Equipment Assignment:** Transport can carry equipment for delivery
+- **Vehicle Information:** Transport includes brand and model for identification
+- **Driver Assignment:** Transport can be assigned to available drivers (nullable)
+- **Equipment Assignment:** Transport can carry equipment for delivery (nullable)
+- **Capacity:** Transport has specified capacity in liters
 
 ## Rate Limiting
 Currently no rate limiting implemented.
@@ -528,3 +547,24 @@ All input data is validated using:
 - Testing: Unit tests, integration tests, and HTTP tests
 - Logging: Structured logging with different levels
 - Configuration: Environment-based configuration management
+
+## OpenAPI Specification
+The API provides a complete OpenAPI 3.0 specification that can be accessed at:
+- **Raw Specification:** `GET /api/v1/docs` - Returns YAML format
+- **Interactive UI:** `GET /api/v1/docs/ui` - Returns Swagger UI
+
+### Benefits of OpenAPI Specification
+- **API Client Generation:** Generate client libraries in various languages
+- **Integration Tools:** Use with tools like Postman, Insomnia, or custom integrations
+- **Documentation:** Always up-to-date API documentation
+- **Testing:** Interactive testing interface via Swagger UI
+- **Contract Testing:** Validate API contracts in CI/CD pipelines
+
+### OpenAPI Features
+- Complete endpoint definitions with request/response schemas
+- Authentication requirements and security schemes
+- Request/response examples
+- Error response definitions
+- Data model schemas for all entities
+- Query parameter documentation
+- Path parameter validation rules

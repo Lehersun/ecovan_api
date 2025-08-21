@@ -17,6 +17,8 @@ const (
 // CreateTransportRequest represents the request to create a new transport
 type CreateTransportRequest struct {
 	PlateNo   string          `json:"plateNo" validate:"required,min=1,max=20"`
+	Brand     string          `json:"brand" validate:"required,min=1,max=50"`
+	Model     string          `json:"model" validate:"required,min=1,max=50"`
 	CapacityL int             `json:"capacityL" validate:"required,gt=0"`
 	Status    TransportStatus `json:"status,omitempty" validate:"omitempty,oneof=IN_WORK REPAIR"`
 }
@@ -24,6 +26,8 @@ type CreateTransportRequest struct {
 // UpdateTransportRequest represents the request to update an existing transport
 type UpdateTransportRequest struct {
 	PlateNo   *string          `json:"plateNo,omitempty" validate:"omitempty,min=1,max=20"`
+	Brand     *string          `json:"brand,omitempty" validate:"omitempty,min=1,max=50"`
+	Model     *string          `json:"model,omitempty" validate:"omitempty,min=1,max=50"`
 	CapacityL *int             `json:"capacityL,omitempty" validate:"omitempty,gt=0"`
 	Status    *TransportStatus `json:"status,omitempty" validate:"omitempty,oneof=IN_WORK REPAIR"`
 }
@@ -48,6 +52,8 @@ type TransportListResponse struct {
 type TransportResponse struct {
 	ID                 uuid.UUID  `json:"id"`
 	PlateNo            string     `json:"plateNo"`
+	Brand              string     `json:"brand"`
+	Model              string     `json:"model"`
 	CapacityL          int        `json:"capacityL"`
 	CurrentDriverID    *uuid.UUID `json:"currentDriverId,omitempty"`
 	CurrentEquipmentID *uuid.UUID `json:"currentEquipmentId,omitempty"`
@@ -72,6 +78,8 @@ func (t *Transport) ToResponse() TransportResponse {
 	return TransportResponse{
 		ID:                 t.ID,
 		PlateNo:            t.PlateNo,
+		Brand:              t.Brand,
+		Model:              t.Model,
 		CapacityL:          t.CapacityL,
 		CurrentDriverID:    t.CurrentDriverID,
 		CurrentEquipmentID: t.CurrentEquipmentID,
@@ -92,6 +100,8 @@ func FromTransportCreateRequest(req CreateTransportRequest) Transport {
 
 	return Transport{
 		PlateNo:   req.PlateNo,
+		Brand:     req.Brand,
+		Model:     req.Model,
 		CapacityL: req.CapacityL,
 		Status:    string(status),
 		CreatedAt: now,
@@ -103,6 +113,12 @@ func FromTransportCreateRequest(req CreateTransportRequest) Transport {
 func (t *Transport) UpdateFromRequest(req UpdateTransportRequest) {
 	if req.PlateNo != nil {
 		t.PlateNo = *req.PlateNo
+	}
+	if req.Brand != nil {
+		t.Brand = *req.Brand
+	}
+	if req.Model != nil {
+		t.Model = *req.Model
 	}
 	if req.CapacityL != nil {
 		t.CapacityL = *req.CapacityL

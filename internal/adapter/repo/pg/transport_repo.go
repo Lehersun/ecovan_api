@@ -31,8 +31,8 @@ func NewTransportRepository(pool *pgxpool.Pool) port.TransportRepository {
 // Create creates a new transport
 func (r *transportRepository) Create(ctx context.Context, transport *models.Transport) error {
 	query := `
-		INSERT INTO transport (id, plate_no, capacity_l, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO transport (id, plate_no, brand, model, capacity_l, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
 	now := time.Now()
@@ -43,6 +43,8 @@ func (r *transportRepository) Create(ctx context.Context, transport *models.Tran
 	_, err := r.pool.Exec(ctx, query,
 		transport.ID,
 		transport.PlateNo,
+		transport.Brand,
+		transport.Model,
 		transport.CapacityL,
 		transport.Status,
 		transport.CreatedAt,
@@ -55,7 +57,7 @@ func (r *transportRepository) Create(ctx context.Context, transport *models.Tran
 // GetByID retrieves a transport by ID, optionally including soft-deleted
 func (r *transportRepository) GetByID(ctx context.Context, id uuid.UUID, includeDeleted bool) (*models.Transport, error) {
 	query := `
-		SELECT id, plate_no, capacity_l, current_driver_id, current_equipment_id, status, created_at, updated_at, deleted_at
+		SELECT id, plate_no, brand, model, capacity_l, current_driver_id, current_equipment_id, status, created_at, updated_at, deleted_at
 		FROM transport
 		WHERE id = $1
 	`
@@ -68,6 +70,8 @@ func (r *transportRepository) GetByID(ctx context.Context, id uuid.UUID, include
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&transport.ID,
 		&transport.PlateNo,
+		&transport.Brand,
+		&transport.Model,
 		&transport.CapacityL,
 		&transport.CurrentDriverID,
 		&transport.CurrentEquipmentID,
@@ -91,13 +95,15 @@ func (r *transportRepository) GetByID(ctx context.Context, id uuid.UUID, include
 func (r *transportRepository) Update(ctx context.Context, transport *models.Transport) error {
 	query := `
 		UPDATE transport 
-		SET plate_no = $1, capacity_l = $2, status = $3, updated_at = $4
-		WHERE id = $5 AND deleted_at IS NULL
+		SET plate_no = $1, brand = $2, model = $3, capacity_l = $4, status = $5, updated_at = $6
+		WHERE id = $7 AND deleted_at IS NULL
 	`
 
 	transport.UpdatedAt = time.Now()
 	result, err := r.pool.Exec(ctx, query,
 		transport.PlateNo,
+		transport.Brand,
+		transport.Model,
 		transport.CapacityL,
 		transport.Status,
 		transport.UpdatedAt,
@@ -160,7 +166,7 @@ func (r *transportRepository) List(ctx context.Context, req models.TransportList
 
 	// Get items with pagination
 	query := `
-		SELECT id, plate_no, capacity_l, current_driver_id, current_equipment_id, status, created_at, updated_at, deleted_at
+		SELECT id, plate_no, brand, model, capacity_l, current_driver_id, current_equipment_id, status, created_at, updated_at, deleted_at
 		` + baseQuery + `
 		ORDER BY created_at DESC
 		LIMIT $` + fmt.Sprintf("%d", argIndex) + ` OFFSET $` + fmt.Sprintf("%d", argIndex+1)
@@ -180,6 +186,8 @@ func (r *transportRepository) List(ctx context.Context, req models.TransportList
 		err := rows.Scan(
 			&transport.ID,
 			&transport.PlateNo,
+			&transport.Brand,
+			&transport.Model,
 			&transport.CapacityL,
 			&transport.CurrentDriverID,
 			&transport.CurrentEquipmentID,
@@ -358,7 +366,7 @@ func (r *transportRepository) GetAvailable(ctx context.Context, req models.Trans
 
 	// Get available transport with pagination
 	query := `
-		SELECT id, plate_no, capacity_l, current_driver_id, current_equipment_id, status, created_at, updated_at, deleted_at
+		SELECT id, plate_no, brand, model, capacity_l, current_driver_id, current_equipment_id, status, created_at, updated_at, deleted_at
 		` + baseQuery + `
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2`
@@ -378,6 +386,8 @@ func (r *transportRepository) GetAvailable(ctx context.Context, req models.Trans
 		err := rows.Scan(
 			&transport.ID,
 			&transport.PlateNo,
+			&transport.Brand,
+			&transport.Model,
 			&transport.CapacityL,
 			&transport.CurrentDriverID,
 			&transport.CurrentEquipmentID,

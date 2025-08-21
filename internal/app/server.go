@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 
 	"eco-van-api/internal/adapter/auth"
 	httpmiddleware "eco-van-api/internal/adapter/http"
@@ -107,8 +108,75 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			endpoints := `["/healthz","/metrics","/auth/login","/auth/refresh","/auth/me","/users",` +
-				`"/clients","/warehouses","/equipment","/drivers","/transport","/orders"]`
+				`"/clients","/warehouses","/equipment","/drivers","/transport","/orders","/docs","/docs/ui"]`
 			fmt.Fprintf(w, `{"message":"API v1","endpoints":%s}`, endpoints)
+		})
+
+		// API Documentation endpoint
+		r.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/vnd.oai.openapi")
+			w.WriteHeader(http.StatusOK)
+
+			// Read the OpenAPI specification file
+			openAPIContent, err := os.ReadFile("openapi.yaml")
+			if err != nil {
+				httpmiddleware.WriteProblemWithType(w, http.StatusInternalServerError,
+					"/errors/internal-server-error",
+					"Failed to load API documentation")
+				return
+			}
+
+			if _, err := w.Write(openAPIContent); err != nil {
+				httpmiddleware.WriteProblemWithType(w, http.StatusInternalServerError,
+					"/errors/internal-server-error",
+					"Failed to write API documentation")
+				return
+			}
+		})
+
+		// Swagger UI endpoint
+		r.Get("/docs/ui", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+
+			swaggerUI := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Eco-Van API Documentation" />
+    <title>Eco-Van API - Swagger UI</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js" crossorigin></script>
+    <script>
+        window.onload = () => {
+            window.ui = SwaggerUIBundle({
+                url: '/api/v1/docs',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout"
+            });
+        };
+    </script>
+</body>
+</html>`
+
+			if _, err := w.Write([]byte(swaggerUI)); err != nil {
+				httpmiddleware.WriteProblemWithType(w, http.StatusInternalServerError,
+					"/errors/internal-server-error",
+					"Failed to write Swagger UI")
+				return
+			}
 		})
 
 		// Metrics endpoint

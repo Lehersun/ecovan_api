@@ -1,0 +1,1498 @@
+openapi: 3.0.3
+info:
+  title: Eco-Van API
+  description: |
+    Comprehensive waste management and logistics system API built with Go, featuring a layered architecture (Handler → Service → Repository), JWT authentication, and RBAC (Role-Based Access Control).
+    
+    **API Response Guarantee:** All list endpoints consistently return empty arrays `[]` instead of `null` when no data is found, ensuring predictable response structures for frontend applications.
+    
+    ## Authentication
+    - JWT-based authentication with access and refresh tokens
+    - Role-based access control (ADMIN, DISPATCHER, DRIVER, VIEWER)
+    
+    ## Response Consistency
+    - **List responses:** Always return `items` as an array, never `null`
+    - **Empty results:** Return empty array `[]` when no data is found
+    - **Single item responses:** Return the item directly or `null` if not found
+    - **Error responses:** Always follow the standard error format
+    
+  version: 1.0.0
+  contact:
+    name: Eco-Van API Support
+    email: support@eco-van.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.eco-van.com
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      description: Check if the service is running
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+              example:
+                status: "ok"
+
+  /readyz:
+    get:
+      summary: Readiness check
+      description: Check if the service is ready to handle requests (database connectivity)
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ready"
+              example:
+                status: "ready"
+        '503':
+          description: Service unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /:
+    get:
+      summary: Root endpoint
+      description: Get API information
+      tags:
+        - System
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Eco Van API"
+                  version:
+                    type: string
+                    example: "1.0.0"
+              example:
+                message: "Eco Van API"
+                version: "1.0.0"
+
+  /metrics:
+    get:
+      summary: Metrics endpoint
+      description: Get application metrics (Prometheus format)
+      tags:
+        - System
+      responses:
+        '200':
+          description: Metrics data
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/v1:
+    get:
+      summary: API v1 information
+      description: Get available API v1 endpoints
+      tags:
+        - System
+      responses:
+        '200':
+          description: Available endpoints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "API v1"
+                  endpoints:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                      - "/healthz"
+                      - "/metrics"
+                      - "/auth/login"
+                      - "/auth/refresh"
+                      - "/auth/me"
+                      - "/users"
+                      - "/clients"
+                      - "/warehouses"
+                      - "/equipment"
+                      - "/drivers"
+                      - "/transport"
+                      - "/orders"
+
+  /api/v1/auth/login:
+    post:
+      summary: User login
+      description: Authenticate user and get access token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "admin@example.com"
+              password: "admin123456"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                expiresIn: 3600
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh token
+      description: Get new access token using refresh token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            example:
+              refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/auth/me:
+    get:
+      summary: Get current user
+      description: Get information about the currently authenticated user
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/users:
+    get:
+      summary: List users
+      description: Get paginated list of users (requires read access)
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  page:
+                    type: integer
+                    example: 1
+                  pageSize:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 1
+              example:
+                items:
+                  - id: "2893ab84-029c-4250-814e-e80d3bbbb4cf"
+                    email: "admin@example.com"
+                    role: "ADMIN"
+                    created_at: "2025-08-21T09:42:13.653141Z"
+                    updated_at: "2025-08-21T09:42:13.653141Z"
+                page: 1
+                pageSize: 20
+                total: 1
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    post:
+      summary: Create user
+      description: Create a new user (ADMIN only)
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              email: "dispatcher@example.com"
+              password: "securepass123"
+              role: "DISPATCHER"
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/users/{id}:
+    get:
+      summary: Get user by ID
+      description: Get user information by ID (requires read access)
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "2893ab84-029c-4250-814e-e80d3bbbb4cf"
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: User not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    delete:
+      summary: Delete user
+      description: Soft delete a user (ADMIN only)
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "2893ab84-029c-4250-814e-e80d3bbbb4cf"
+      responses:
+        '204':
+          description: User deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: User not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/clients:
+    get:
+      summary: List clients
+      description: Get paginated list of clients (requires read access)
+      tags:
+        - Clients
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          description: Search term for name, email, or phone
+          required: false
+          schema:
+            type: string
+        - name: includeDeleted
+          in: query
+          description: Include soft-deleted clients
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Client'
+                  page:
+                    type: integer
+                    example: 1
+                  pageSize:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 0
+              example:
+                items: []
+                page: 1
+                pageSize: 20
+                total: 0
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    post:
+      summary: Create client
+      description: Create a new client (ADMIN and DISPATCHER only)
+      tags:
+        - Clients
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClientRequest'
+            example:
+              name: "Acme Corporation"
+              tax_id: "123456789"
+              email: "contact@acme.com"
+              phone: "+1234567890"
+              notes: "Major client with multiple locations"
+      responses:
+        '201':
+          description: Client created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/clients/{id}:
+    get:
+      summary: Get client by ID
+      description: Get client information by ID (requires read access)
+      tags:
+        - Clients
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+      responses:
+        '200':
+          description: Client information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    put:
+      summary: Update client
+      description: Update client information (ADMIN and DISPATCHER only)
+      tags:
+        - Clients
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClientRequest'
+            example:
+              name: "Acme Corporation Updated"
+              email: "info@acme.com"
+              phone: "+1234567890"
+      responses:
+        '200':
+          description: Client updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    delete:
+      summary: Delete client
+      description: Soft delete a client (ADMIN and DISPATCHER only)
+      tags:
+        - Clients
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+      responses:
+        '204':
+          description: Client deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/clients/{id}/restore:
+    post:
+      summary: Restore client
+      description: Restore a soft-deleted client (ADMIN and DISPATCHER only)
+      tags:
+        - Clients
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+      responses:
+        '200':
+          description: Client restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/clients/{clientId}/objects:
+    get:
+      summary: List client objects
+      description: Get paginated list of objects for a specific client (requires read access)
+      tags:
+        - Client Objects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: clientId
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+        - name: page
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: includeDeleted
+          in: query
+          description: Include soft-deleted objects
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of client objects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClientObject'
+                  page:
+                    type: integer
+                    example: 1
+                  pageSize:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 0
+              example:
+                items: []
+                page: 1
+                pageSize: 20
+                total: 0
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    post:
+      summary: Create client object
+      description: Create a new object for a specific client (ADMIN and DISPATCHER only)
+      tags:
+        - Client Objects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: clientId
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClientObjectRequest'
+            example:
+              name: "Main Office"
+              address: "123 Business St, City, State 12345"
+              geo_lat: 40.7128
+              geo_lng: -74.0060
+              notes: "Primary business location"
+      responses:
+        '201':
+          description: Client object created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientObject'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/clients/{clientId}/objects/{id}:
+    get:
+      summary: Get client object by ID
+      description: Get client object information by ID (requires read access)
+      tags:
+        - Client Objects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: clientId
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+        - name: id
+          in: path
+          description: Client object ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "b7e5f37e-773d-5dc7-07fb-93e62ef788d"
+      responses:
+        '200':
+          description: Client object information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientObject'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client object not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    put:
+      summary: Update client object
+      description: Update client object information (ADMIN and DISPATCHER only)
+      tags:
+        - Client Objects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: clientId
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+        - name: id
+          in: path
+          description: Client object ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "b7e5f37e-773d-5dc7-07fb-93e62ef788d"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClientObjectRequest'
+            example:
+              name: "Main Office Updated"
+              address: "123 Business St, Suite 100, City, State 12345"
+              geo_lat: 40.7128
+              geo_lng: -74.0060
+      responses:
+        '200':
+          description: Client object updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientObject'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client object not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    delete:
+      summary: Delete client object
+      description: Soft delete a client object (ADMIN and DISPATCHER only)
+      tags:
+        - Client Objects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: clientId
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+        - name: id
+          in: path
+          description: Client object ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "b7e5f37e-773d-5dc7-07fb-93e62ef788d"
+      responses:
+        '204':
+          description: Client object deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client object not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/clients/{clientId}/objects/{id}/restore:
+    post:
+      summary: Restore client object
+      description: Restore a soft-deleted client object (ADMIN and DISPATCHER only)
+      tags:
+        - Client Objects
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: clientId
+          in: path
+          description: Client ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "a6d4f26d-662c-4cb6-96ea-82d51de6778c"
+        - name: id
+          in: path
+          description: Client object ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "b7e5f37e-773d-5dc7-07fb-93e62ef788d"
+      responses:
+        '200':
+          description: Client object restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientObject'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Client object not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  # =========================================
+  # Transport Management
+  # =========================================
+  
+  /api/v1/transport:
+    get:
+      summary: List transports
+      description: Get a paginated list of transports (all authenticated users with read access)
+      tags:
+        - Transport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (default: 1)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: pageSize
+          in: query
+          description: Page size (default: 10, max: 100)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+            example: 10
+        - name: status
+          in: query
+          description: Filter by status
+          required: false
+          schema:
+            type: string
+            enum: [IN_WORK, REPAIR]
+            example: "IN_WORK"
+        - name: includeDeleted
+          in: query
+          description: Include soft-deleted transports
+          required: false
+          schema:
+            type: boolean
+            default: false
+            example: false
+      responses:
+        '200':
+          description: List of transports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportListResponse'
+              example:
+                items:
+                  - id: "6b8baf59-4045-420f-a72b-f9a6f20d08d6"
+                    plateNo: "TEST-001"
+                    brand: "BMW"
+                    model: "X5"
+                    capacityL: 4000
+                    status: "IN_WORK"
+                    createdAt: "2025-08-21T16:34:59.951727+03:00"
+                    updatedAt: "2025-08-21T16:34:59.951727+03:00"
+                page: 1
+                pageSize: 10
+                total: 1
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    post:
+      summary: Create transport
+      description: Create a new transport (ADMIN and DISPATCHER only)
+      tags:
+        - Transport
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransportRequest'
+            example:
+              plateNo: "ABC-123"
+              brand: "Mercedes"
+              model: "Sprinter"
+              capacityL: 5000
+              status: "IN_WORK"
+      responses:
+        '201':
+          description: Transport created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportResponse'
+              example:
+                id: "6b8baf59-4045-420f-a72b-f9a6f20d08d6"
+                plateNo: "ABC-123"
+                brand: "Mercedes"
+                model: "Sprinter"
+                capacityL: 5000
+                status: "IN_WORK"
+                createdAt: "2025-08-21T16:34:59.951727+03:00"
+                updatedAt: "2025-08-21T16:34:59.951727+03:00"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Conflict (e.g., plate number already exists)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/transport/{id}:
+    get:
+      summary: Get transport by ID
+      description: Get a specific transport by ID (all authenticated users with read access)
+      tags:
+        - Transport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Transport ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "6b8baf59-4045-420f-a72b-f9a6f20d08d6"
+      responses:
+        '200':
+          description: Transport details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Transport not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    put:
+      summary: Update transport
+      description: Update an existing transport (ADMIN and DISPATCHER only)
+      tags:
+        - Transport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Transport ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "6b8baf59-4045-420f-a72b-f9a6f20d08d6"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransportRequest'
+            example:
+              brand: "Volvo"
+              model: "FL"
+              capacityL: 6000
+      responses:
+        '200':
+          description: Transport updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportResponse'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Transport not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Conflict (e.g., plate number already exists)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+    delete:
+      summary: Delete transport
+      description: Soft delete a transport (ADMIN and DISPATCHER only)
+      tags:
+        - Transport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Transport ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "6b8baf59-4045-420f-a72b-f9a6f20d08d6"
+      responses:
+        '204':
+          description: Transport deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Transport not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Conflict (e.g., transport cannot be deleted)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/transport/{id}/restore:
+    post:
+      summary: Restore transport
+      description: Restore a soft-deleted transport (ADMIN and DISPATCHER only)
+      tags:
+        - Transport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Transport ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "6b8baf59-4045-420f-a72b-f9a6f20d08d6"
+      responses:
+        '200':
+          description: Transport restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransportResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Transport not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Conflict (e.g., plate number already taken)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'

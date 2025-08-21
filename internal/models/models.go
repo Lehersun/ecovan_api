@@ -53,6 +53,8 @@ type Equipment struct {
 type Transport struct {
 	ID                 uuid.UUID  `json:"id" db:"id"`
 	PlateNo            string     `json:"plate_no" db:"plate_no"`
+	Brand              string     `json:"brand" db:"brand"`
+	Model              string     `json:"model" db:"model"`
 	CapacityL          int        `json:"capacity_l" db:"capacity_l"`
 	CurrentDriverID    *uuid.UUID `json:"current_driver_id,omitempty" db:"current_driver_id"`
 	CurrentEquipmentID *uuid.UUID `json:"current_equipment_id,omitempty" db:"current_equipment_id"`

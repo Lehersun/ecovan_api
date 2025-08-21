@@ -146,9 +146,11 @@ CREATE INDEX IF NOT EXISTS idx_drivers_license ON drivers(license_no);
 CREATE TABLE IF NOT EXISTS transport (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plate_no              TEXT NOT NULL,
+  brand                 TEXT NOT NULL,
+  model                 TEXT NOT NULL,
   capacity_l            INTEGER NOT NULL CHECK (capacity_l > 0),
-  current_driver_id     UUID REFERENCES drivers(id),
-  current_equipment_id  UUID REFERENCES equipment(id),
+  current_driver_id     UUID REFERENCES drivers(id) NULL,
+  current_equipment_id  UUID REFERENCES equipment(id) NULL,
   status                TEXT NOT NULL DEFAULT 'IN_WORK' CHECK (status IN ('IN_WORK','REPAIR')),
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),

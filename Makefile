@@ -75,7 +75,7 @@ db: ## Start development database
 		echo "Waiting for database to be ready..."; \
 		sleep 5; \
 		echo "Applying schema..."; \
-		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f migrations/001_initial_schema.sql; \
+		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f db/migrations/001_initial_schema.sql; \
 		echo "Database ready at postgres://app:app@localhost:5432/eco_van_db"; \
 	fi
 
@@ -94,7 +94,7 @@ test-db: ## Start test database
 		echo "Waiting for database to be ready..."; \
 		sleep 5; \
 		echo "Applying schema..."; \
-		psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f migrations/001_initial_schema.sql; \
+		psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f db/migrations/001_initial_schema.sql; \
 		echo "Test database ready at postgres://app:app@localhost:5433/waste_test"; \
 	fi
 

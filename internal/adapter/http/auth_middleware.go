@@ -11,8 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-
-
 // AuthMiddleware provides authentication for protected routes
 type AuthMiddleware struct {
 	jwtManager *auth.JWTManager

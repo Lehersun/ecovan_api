@@ -71,7 +71,7 @@ func (r *orderRepository) GetByID(ctx context.Context, id uuid.UUID, includeDele
 	`
 
 	if !includeDeleted {
-		query += " AND deleted_at IS NULL"
+		query += DeletedAtFilter
 	}
 
 	var order models.Order
