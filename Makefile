@@ -1,7 +1,7 @@
 # Get GOPATH
 GOPATH := $(shell go env GOPATH)
 
-.PHONY: help tools lint fmt test test-integration build run clean db test-db env-setup dev dev-stop dev-reset
+.PHONY: help tools lint fmt test test-integration build run clean db test-db env-setup dev dev-stop dev-reset fixtures test-fixtures
 
 # Default target
 help: ## Show this help message
@@ -77,6 +77,9 @@ db: ## Start development database
 		sleep 5; \
 		echo "Applying migrations..."; \
 		$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" up; \
+		echo "Loading fixtures..."; \
+		PGPASSWORD=app psql -h localhost -U app -d eco_van_db -c "SELECT 1;" >/dev/null 2>&1 || sleep 2; \
+		PGPASSWORD=app psql -h localhost -U app -d eco_van_db -f db/fixtures/001_sample_data.sql; \
 		echo "Database ready at postgres://app:app@localhost:5432/eco_van_db"; \
 	fi
 
@@ -96,7 +99,10 @@ test-db: ## Start test database
 		sleep 5; \
 		echo "Applying migrations..."; \
 		$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5433/waste_test?sslmode=disable" up; \
-		echo "Test database ready at postgres://app:app@localhost:5433/waste_test"; \
+		echo "Loading fixtures..."; \
+		PGPASSWORD=app psql -h localhost -U app -d waste_test -p 5433 -c "SELECT 1;" >/dev/null 2>&1 || sleep 2; \
+		PGPASSWORD=app psql -h localhost -U app -d waste_test -p 5433 -f db/fixtures/001_sample_data.sql; \
+		echo "Test database ready at postgres://app:5433/waste_test"; \
 	fi
 
 # Stop databases
@@ -200,3 +206,22 @@ test-migrate-up: ## Run test database migrations up
 test-migrate-down: ## Run test database migrations down  
 	@echo "Running test migrations down..."
 	$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5433/waste_test?sslmode=disable" down
+
+# Fixture targets
+fixtures: ## Load fixtures into development database
+	@echo "Loading fixtures into development database..."
+	@if [ "$(shell docker ps -q -f name=eco-van-db)" ]; then \
+		PGPASSWORD=app psql -h localhost -U app -d eco_van_db -f db/fixtures/001_sample_data.sql; \
+		echo "Fixtures loaded successfully"; \
+	else \
+		echo "Development database not running. Run 'make db' first."; \
+	fi
+
+test-fixtures: ## Load fixtures into test database
+	@echo "Loading fixtures into test database..."
+	@if [ "$(shell docker ps -q -f name=eco-van-test-db)" ]; then \
+		PGPASSWORD=app psql -h localhost -U app -d waste_test -p 5433 -f db/fixtures/001_sample_data.sql; \
+		echo "Test fixtures loaded successfully"; \
+	else \
+		echo "Test database not running. Run 'make test-db' first."; \
+	fi
