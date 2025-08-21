@@ -145,7 +145,7 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create order
-	order, err := h.orderService.Create(r.Context(), req, createdBy)
+	order, err := h.orderService.Create(r.Context(), &req, createdBy)
 	if err != nil {
 		WriteInternalError(w, "Failed to create order")
 		return

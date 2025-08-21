@@ -34,7 +34,7 @@ func NewOrderService(
 }
 
 // Create creates a new order with validation
-func (s *orderService) Create(ctx context.Context, req models.CreateOrderRequest, createdBy *uuid.UUID) (*models.OrderResponse, error) {
+func (s *orderService) Create(ctx context.Context, req *models.CreateOrderRequest, createdBy *uuid.UUID) (*models.OrderResponse, error) {
 	// Validate that client exists
 	client, err := s.clientRepo.GetByID(ctx, req.ClientID, false)
 	if err != nil {

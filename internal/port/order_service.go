@@ -11,7 +11,7 @@ import (
 // OrderService defines the interface for order business logic operations
 type OrderService interface {
 	// Create creates a new order with validation
-	Create(ctx context.Context, req models.CreateOrderRequest, createdBy *uuid.UUID) (*models.OrderResponse, error)
+	Create(ctx context.Context, req *models.CreateOrderRequest, createdBy *uuid.UUID) (*models.OrderResponse, error)
 
 	// GetByID retrieves an order by ID
 	GetByID(ctx context.Context, id uuid.UUID) (*models.OrderResponse, error)

@@ -114,7 +114,7 @@ func (o *Order) ToResponse() OrderResponse {
 }
 
 // FromCreateRequest creates a new Order from CreateOrderRequest
-func FromOrderCreateRequest(req CreateOrderRequest) Order {
+func FromOrderCreateRequest(req *CreateOrderRequest) Order {
 	return Order{
 		ClientID:            req.ClientID,
 		ObjectID:            req.ObjectID,
