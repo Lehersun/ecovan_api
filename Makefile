@@ -13,6 +13,7 @@ tools: ## Install development tools
 	@echo "Installing development tools..."
 	go mod tidy
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	@echo "Tools installed successfully"
 
 # Run linter
@@ -74,8 +75,8 @@ db: ## Start development database
 			-d postgres:16-alpine; \
 		echo "Waiting for database to be ready..."; \
 		sleep 5; \
-		echo "Applying schema..."; \
-		psql "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" -f db/migrations/001_initial_schema.sql; \
+		echo "Applying migrations..."; \
+		$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" up; \
 		echo "Database ready at postgres://app:app@localhost:5432/eco_van_db"; \
 	fi
 
@@ -93,8 +94,8 @@ test-db: ## Start test database
 			-d postgres:16-alpine; \
 		echo "Waiting for database to be ready..."; \
 		sleep 5; \
-		echo "Applying schema..."; \
-		psql "postgres://app:app@localhost:5433/waste_test?sslmode=disable" -f db/migrations/001_initial_schema.sql; \
+		echo "Applying migrations..."; \
+		$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5433/waste_test?sslmode=disable" up; \
 		echo "Test database ready at postgres://app:app@localhost:5433/waste_test"; \
 	fi
 
@@ -174,3 +175,28 @@ test-db-stop: ## Stop test database
 	else \
 		echo "Test database not running"; \
 	fi
+
+# Migration targets
+migrate-up: ## Run database migrations up
+	@echo "Running migrations up..."
+	$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" up
+
+migrate-down: ## Run database migrations down
+	@echo "Running migrations down..."
+	$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" down
+
+migrate-version: ## Check migration version
+	@$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" version
+
+migrate-force: ## Force migration to specific version (requires VERSION=N)
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make migrate-force VERSION=N"; exit 1; fi
+	$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5432/eco_van_db?sslmode=disable" force $(VERSION)
+
+# Test migration targets
+test-migrate-up: ## Run test database migrations up
+	@echo "Running test migrations up..."
+	$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5433/waste_test?sslmode=disable" up
+
+test-migrate-down: ## Run test database migrations down  
+	@echo "Running test migrations down..."
+	$(shell go env GOPATH)/bin/migrate -path db/migrations -database "postgres://app:app@localhost:5433/waste_test?sslmode=disable" down

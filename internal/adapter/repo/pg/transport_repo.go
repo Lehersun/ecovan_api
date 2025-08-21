@@ -320,15 +320,44 @@ func (r *transportRepository) UnassignDriver(ctx context.Context, transportID uu
 
 // AssignEquipment assigns equipment to transport
 func (r *transportRepository) AssignEquipment(ctx context.Context, transportID, equipmentID uuid.UUID) error {
-	query := "UPDATE transport SET current_equipment_id = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL"
-
-	result, err := r.pool.Exec(ctx, query, equipmentID, transportID)
+	// Start a transaction to update both tables
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to assign equipment to transport: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil {
+			// Log the rollback error but don't return it since we're already returning an error
+			_ = err // explicitly ignore the error
+		}
+	}()
+
+	// Update transport table
+	transportQuery := "UPDATE transport SET current_equipment_id = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL"
+	result, err := tx.Exec(ctx, transportQuery, equipmentID, transportID)
+	if err != nil {
+		return fmt.Errorf("failed to update transport: %w", err)
 	}
 
 	if result.RowsAffected() == 0 {
 		return fmt.Errorf("transport not found or already deleted")
+	}
+
+	// Update equipment table to set transport_id
+	equipmentQuery := "UPDATE equipment SET transport_id = $1, client_object_id = NULL, " +
+		"warehouse_id = NULL, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL"
+	result, err = tx.Exec(ctx, equipmentQuery, transportID, equipmentID)
+	if err != nil {
+		return fmt.Errorf("failed to update equipment: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("equipment not found or already deleted")
+	}
+
+	// Commit transaction
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
@@ -336,15 +365,55 @@ func (r *transportRepository) AssignEquipment(ctx context.Context, transportID, 
 
 // UnassignEquipment removes equipment assignment from transport
 func (r *transportRepository) UnassignEquipment(ctx context.Context, transportID uuid.UUID) error {
-	query := "UPDATE transport SET current_equipment_id = NULL, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL"
-
-	result, err := r.pool.Exec(ctx, query, transportID)
+	// Start a transaction to update both tables
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to unassign equipment from transport: %w", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil {
+			// Log the rollback error but don't return it since we're already returning an error
+			_ = err // explicitly ignore the error
+		}
+	}()
+
+	// Get the equipment ID that was assigned to this transport
+	var equipmentID *uuid.UUID
+	equipmentQuery := "SELECT current_equipment_id FROM transport WHERE id = $1 AND deleted_at IS NULL"
+	err = tx.QueryRow(ctx, equipmentQuery, transportID).Scan(&equipmentID)
+	if err != nil {
+		return fmt.Errorf("failed to get equipment ID from transport: %w", err)
+	}
+
+	if equipmentID == nil {
+		return fmt.Errorf("no equipment assigned to transport")
+	}
+
+	// Update transport table
+	transportQuery := "UPDATE transport SET current_equipment_id = NULL, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL"
+	result, err := tx.Exec(ctx, transportQuery, transportID)
+	if err != nil {
+		return fmt.Errorf("failed to update transport: %w", err)
 	}
 
 	if result.RowsAffected() == 0 {
 		return fmt.Errorf("transport not found or already deleted")
+	}
+
+	// Update equipment table to clear transport_id
+	equipmentUpdateQuery := "UPDATE equipment SET transport_id = NULL, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL"
+	result, err = tx.Exec(ctx, equipmentUpdateQuery, *equipmentID)
+	if err != nil {
+		return fmt.Errorf("failed to update equipment: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("equipment not found or already deleted")
+	}
+
+	// Commit transaction
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
@@ -459,7 +528,7 @@ func (r *transportRepository) IsEquipmentAssignedToOtherTransport(ctx context.Co
 	return exists, nil
 }
 
-// IsEquipmentAvailableForAssignment checks if equipment can be assigned (no client_object_id or warehouse_id)
+// IsEquipmentAvailableForAssignment checks if equipment can be assigned (no client_object_id, warehouse_id, or transport_id)
 func (r *transportRepository) IsEquipmentAvailableForAssignment(ctx context.Context, equipmentID uuid.UUID) (bool, error) {
 	query := `
 		SELECT EXISTS(
@@ -467,6 +536,7 @@ func (r *transportRepository) IsEquipmentAvailableForAssignment(ctx context.Cont
 			WHERE id = $1 
 			AND client_object_id IS NULL 
 			AND warehouse_id IS NULL 
+			AND transport_id IS NULL
 			AND deleted_at IS NULL
 		)`
 

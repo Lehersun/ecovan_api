@@ -64,6 +64,14 @@ func (h *EquipmentHandler) ListEquipment(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	// Parse transport filter
+	var transportID *uuid.UUID
+	if transportIDStr := r.URL.Query().Get("transportId"); transportIDStr != "" {
+		if id, err := uuid.Parse(transportIDStr); err == nil {
+			transportID = &id
+		}
+	}
+
 	// Build request
 	req := models.EquipmentListRequest{
 		Page:           page,
@@ -71,6 +79,7 @@ func (h *EquipmentHandler) ListEquipment(w http.ResponseWriter, r *http.Request)
 		Type:           equipmentType,
 		ClientObjectID: clientObjectID,
 		WarehouseID:    warehouseID,
+		TransportID:    transportID,
 		IncludeDeleted: includeDeleted,
 	}
 
@@ -128,10 +137,10 @@ func (h *EquipmentHandler) CreateEquipment(w http.ResponseWriter, r *http.Reques
 	// Call service
 	equipment, err := h.equipmentService.Create(r.Context(), req)
 	if err != nil {
-		if err.Error() == "validation failed: equipment cannot be placed at both client object and warehouse simultaneously" {
+		if err.Error() == "validation failed: equipment must be assigned to exactly one of: transport, client object, or warehouse" {
 			WriteProblemWithType(w, http.StatusUnprocessableEntity,
 				"/errors/unprocessable-entity",
-				"Cannot place equipment at both client object and warehouse simultaneously")
+				"Equipment must be assigned to exactly one of: transport, client object, or warehouse")
 			return
 		}
 		if err.Error() == "equipment with number '"+*req.Number+"' already exists" {
@@ -172,10 +181,10 @@ func (h *EquipmentHandler) UpdateEquipment(w http.ResponseWriter, r *http.Reques
 	// Call service
 	equipment, err := h.equipmentService.Update(r.Context(), id, req)
 	if err != nil {
-		if err.Error() == "validation failed: equipment cannot be placed at both client object and warehouse simultaneously" {
+		if err.Error() == "validation failed: equipment must be assigned to exactly one of: transport, client object, or warehouse" {
 			WriteProblemWithType(w, http.StatusUnprocessableEntity,
 				"/errors/unprocessable-entity",
-				"Cannot place equipment at both client object and warehouse simultaneously")
+				"Equipment must be assigned to exactly one of: transport, client object, or warehouse")
 			return
 		}
 		if err.Error() == ErrEquipmentNotFound {

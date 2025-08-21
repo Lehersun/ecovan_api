@@ -30,8 +30,8 @@ func NewEquipmentRepository(pool *pgxpool.Pool) port.EquipmentRepository {
 // Create creates a new equipment
 func (r *equipmentRepository) Create(ctx context.Context, equipment *models.Equipment) error {
 	query := `
-		INSERT INTO equipment (id, number, type, volume_l, condition, photo, client_object_id, warehouse_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO equipment (id, number, type, volume_l, condition, photo, client_object_id, warehouse_id, transport_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
 	now := time.Now()
@@ -48,6 +48,7 @@ func (r *equipmentRepository) Create(ctx context.Context, equipment *models.Equi
 		equipment.Photo,
 		equipment.ClientObjectID,
 		equipment.WarehouseID,
+		equipment.TransportID,
 		equipment.CreatedAt,
 		equipment.UpdatedAt,
 	)
@@ -58,7 +59,7 @@ func (r *equipmentRepository) Create(ctx context.Context, equipment *models.Equi
 // GetByID retrieves equipment by ID, optionally including soft-deleted
 func (r *equipmentRepository) GetByID(ctx context.Context, id uuid.UUID, includeDeleted bool) (*models.Equipment, error) {
 	query := `
-		SELECT id, number, type, volume_l, condition, photo, client_object_id, warehouse_id, created_at, updated_at, deleted_at
+		SELECT id, number, type, volume_l, condition, photo, client_object_id, warehouse_id, transport_id, created_at, updated_at, deleted_at
 		FROM equipment
 		WHERE id = $1
 	`
@@ -77,6 +78,7 @@ func (r *equipmentRepository) GetByID(ctx context.Context, id uuid.UUID, include
 		&equipment.Photo,
 		&equipment.ClientObjectID,
 		&equipment.WarehouseID,
+		&equipment.TransportID,
 		&equipment.CreatedAt,
 		&equipment.UpdatedAt,
 		&equipment.DeletedAt,
@@ -126,6 +128,13 @@ func (r *equipmentRepository) List(ctx context.Context, req models.EquipmentList
 		argIndex++
 	}
 
+	// Add transport filter
+	if req.TransportID != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("transport_id = $%d", argIndex))
+		args = append(args, *req.TransportID)
+		argIndex++
+	}
+
 	// Build WHERE clause
 	whereClause := r.BuildWhereClause(whereClauses)
 
@@ -137,7 +146,7 @@ func (r *equipmentRepository) List(ctx context.Context, req models.EquipmentList
 
 	// Build pagination query
 	query := fmt.Sprintf(`
-		SELECT id, number, type, volume_l, condition, photo, client_object_id, warehouse_id, created_at, updated_at, deleted_at
+		SELECT id, number, type, volume_l, condition, photo, client_object_id, warehouse_id, transport_id, created_at, updated_at, deleted_at
 		%s
 		%s
 		ORDER BY created_at DESC
@@ -167,6 +176,7 @@ func (r *equipmentRepository) List(ctx context.Context, req models.EquipmentList
 			&equipment.Photo,
 			&equipment.ClientObjectID,
 			&equipment.WarehouseID,
+			&equipment.TransportID,
 			&equipment.CreatedAt,
 			&equipment.UpdatedAt,
 			&equipment.DeletedAt,
@@ -194,8 +204,8 @@ func (r *equipmentRepository) Update(ctx context.Context, equipment *models.Equi
 	query := `
 		UPDATE equipment
 		SET number = $1, type = $2, volume_l = $3, condition = $4, photo = $5, 
-		    client_object_id = $6, warehouse_id = $7, updated_at = $8
-		WHERE id = $9
+		    client_object_id = $6, warehouse_id = $7, transport_id = $8, updated_at = $9
+		WHERE id = $10
 	`
 
 	equipment.UpdatedAt = time.Now()
@@ -207,6 +217,7 @@ func (r *equipmentRepository) Update(ctx context.Context, equipment *models.Equi
 		equipment.Photo,
 		equipment.ClientObjectID,
 		equipment.WarehouseID,
+		equipment.TransportID,
 		equipment.UpdatedAt,
 		equipment.ID,
 	)
@@ -251,8 +262,8 @@ func (r *equipmentRepository) ExistsByNumber(ctx context.Context, number string,
 func (r *equipmentRepository) IsAttachedToTransport(ctx context.Context, equipmentID uuid.UUID) (bool, error) {
 	query := `
 		SELECT EXISTS(
-			SELECT 1 FROM transport 
-			WHERE current_equipment_id = $1 AND deleted_at IS NULL
+			SELECT 1 FROM equipment 
+			WHERE id = $1 AND transport_id IS NOT NULL AND deleted_at IS NULL
 		)
 	`
 	var exists bool

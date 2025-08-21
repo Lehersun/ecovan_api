@@ -44,6 +44,7 @@ type Equipment struct {
 	Photo          *string    `json:"photo,omitempty" db:"photo"`
 	ClientObjectID *uuid.UUID `json:"clientObjectId" db:"client_object_id"`
 	WarehouseID    *uuid.UUID `json:"warehouseId" db:"warehouse_id"`
+	TransportID    *uuid.UUID `json:"transportId" db:"transport_id"`
 	CreatedAt      time.Time  `json:"createdAt" db:"created_at"`
 	UpdatedAt      time.Time  `json:"updatedAt" db:"updated_at"`
 	DeletedAt      *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`

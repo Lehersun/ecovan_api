@@ -25,7 +25,7 @@ const (
 )
 
 // Error constants
-var ErrInvalidPlacement = fmt.Errorf("equipment cannot be placed at both client object and warehouse simultaneously")
+var ErrInvalidPlacement = fmt.Errorf("equipment must be assigned to exactly one of: transport, client object, or warehouse")
 
 // CreateEquipmentRequest represents the request to create new equipment
 type CreateEquipmentRequest struct {
@@ -36,6 +36,7 @@ type CreateEquipmentRequest struct {
 	Photo          *string            `json:"photo,omitempty" validate:"omitempty,max=500"`
 	ClientObjectID *uuid.UUID         `json:"clientObjectId"`
 	WarehouseID    *uuid.UUID         `json:"warehouseId"`
+	TransportID    *uuid.UUID         `json:"transportId"`
 }
 
 // UpdateEquipmentRequest represents the request to update existing equipment
@@ -47,6 +48,7 @@ type UpdateEquipmentRequest struct {
 	Photo          *string            `json:"photo,omitempty" validate:"omitempty,max=500"`
 	ClientObjectID *uuid.UUID         `json:"clientObjectId"`
 	WarehouseID    *uuid.UUID         `json:"warehouseId"`
+	TransportID    *uuid.UUID         `json:"transportId"`
 }
 
 // EquipmentListRequest represents the request to list equipment with filtering and pagination
@@ -56,6 +58,7 @@ type EquipmentListRequest struct {
 	Type           *EquipmentType `json:"type,omitempty"`
 	ClientObjectID *uuid.UUID     `json:"clientObjectId,omitempty"`
 	WarehouseID    *uuid.UUID     `json:"warehouseId,omitempty"`
+	TransportID    *uuid.UUID     `json:"transportId,omitempty"`
 	IncludeDeleted bool           `json:"includeDeleted"`
 }
 
@@ -77,6 +80,7 @@ type EquipmentResponse struct {
 	Photo          *string            `json:"photo,omitempty"`
 	ClientObjectID *uuid.UUID         `json:"clientObjectId,omitempty"`
 	WarehouseID    *uuid.UUID         `json:"warehouseId,omitempty"`
+	TransportID    *uuid.UUID         `json:"transportId,omitempty"`
 	CreatedAt      time.Time          `json:"createdAt"`
 	UpdatedAt      time.Time          `json:"updatedAt"`
 	DeletedAt      *time.Time         `json:"deletedAt,omitempty"`
@@ -93,6 +97,7 @@ func (e *Equipment) ToResponse() EquipmentResponse {
 		Photo:          e.Photo,
 		ClientObjectID: e.ClientObjectID,
 		WarehouseID:    e.WarehouseID,
+		TransportID:    e.TransportID,
 		CreatedAt:      e.CreatedAt,
 		UpdatedAt:      e.UpdatedAt,
 		DeletedAt:      e.DeletedAt,
@@ -100,6 +105,8 @@ func (e *Equipment) ToResponse() EquipmentResponse {
 }
 
 // FromCreateRequest creates a new Equipment from CreateEquipmentRequest
+//
+//nolint:gocritic // hugeParam: Interface requires request by value
 func FromEquipmentCreateRequest(req CreateEquipmentRequest) Equipment {
 	return Equipment{
 		Type:           string(req.Type),
@@ -109,10 +116,13 @@ func FromEquipmentCreateRequest(req CreateEquipmentRequest) Equipment {
 		Photo:          req.Photo,
 		ClientObjectID: req.ClientObjectID,
 		WarehouseID:    req.WarehouseID,
+		TransportID:    req.TransportID,
 	}
 }
 
 // UpdateFromRequest updates an Equipment from UpdateEquipmentRequest
+//
+//nolint:gocritic // hugeParam: Interface requires request by value
 func (e *Equipment) UpdateFromRequest(req UpdateEquipmentRequest) {
 	e.Type = string(req.Type)
 	e.VolumeL = req.VolumeL
@@ -121,20 +131,45 @@ func (e *Equipment) UpdateFromRequest(req UpdateEquipmentRequest) {
 	e.Photo = req.Photo
 	e.ClientObjectID = req.ClientObjectID
 	e.WarehouseID = req.WarehouseID
+	e.TransportID = req.TransportID
 }
 
-// ValidatePlacement validates that exactly one of ClientObjectID or WarehouseID is set
+// ValidatePlacement validates that exactly one of TransportID, ClientObjectID, or WarehouseID is set
 func (req *CreateEquipmentRequest) ValidatePlacement() error {
-	if req.ClientObjectID != nil && req.WarehouseID != nil {
-		return ErrInvalidPlacement
+	count := 0
+	if req.TransportID != nil {
+		count++
+	}
+	if req.ClientObjectID != nil {
+		count++
+	}
+	if req.WarehouseID != nil {
+		count++
+	}
+
+	if count != 1 {
+		return fmt.Errorf("equipment must be assigned to exactly one of: transport, client object, or warehouse")
 	}
 	return nil
 }
 
-// ValidatePlacement validates that exactly one of ClientObjectID or WarehouseID is set
+// ValidatePlacement validates that exactly one of TransportID, ClientObjectID, or WarehouseID is set
 func (req *UpdateEquipmentRequest) ValidatePlacement() error {
-	if req.ClientObjectID != nil && req.WarehouseID != nil {
-		return ErrInvalidPlacement
+	count := 0
+	if req.TransportID != nil {
+		count++
+	}
+	if req.ClientObjectID != nil {
+		count++
+	}
+	if req.WarehouseID != nil {
+		count++
+	}
+
+	// For updates, if no placement is specified, it's valid (will keep existing placement)
+	// If placement is specified, exactly one must be set
+	if count > 0 && count != 1 {
+		return fmt.Errorf("equipment must be assigned to exactly one of: transport, client object, or warehouse")
 	}
 	return nil
 }

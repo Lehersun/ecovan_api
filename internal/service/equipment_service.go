@@ -24,6 +24,8 @@ func NewEquipmentService(equipmentRepo port.EquipmentRepository) port.EquipmentS
 }
 
 // Create creates a new equipment with validation
+//
+//nolint:gocritic // hugeParam: Interface requires request by value
 func (s *equipmentService) Create(ctx context.Context, req models.CreateEquipmentRequest) (*models.EquipmentResponse, error) {
 	// Validate placement (exactly one of client_object_id or warehouse_id)
 	if err := req.ValidatePlacement(); err != nil {
@@ -90,12 +92,9 @@ func (s *equipmentService) List(ctx context.Context, req models.EquipmentListReq
 }
 
 // Update updates an existing equipment with validation
+//
+//nolint:gocritic // hugeParam: Interface requires request by value
 func (s *equipmentService) Update(ctx context.Context, id uuid.UUID, req models.UpdateEquipmentRequest) (*models.EquipmentResponse, error) {
-	// Validate placement (exactly one of client_object_id or warehouse_id)
-	if err := req.ValidatePlacement(); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
-	}
-
 	// Get existing equipment
 	equipment, err := s.equipmentRepo.GetByID(ctx, id, false)
 	if err != nil {
@@ -106,30 +105,19 @@ func (s *equipmentService) Update(ctx context.Context, id uuid.UUID, req models.
 		return nil, fmt.Errorf("equipment not found")
 	}
 
-	// Check if equipment is attached to transport
-	isAttached, err := s.equipmentRepo.IsAttachedToTransport(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check transport attachment: %w", err)
-	}
-
-	// If placement is being changed and equipment is attached to transport, reject
-	if isAttached && (req.ClientObjectID != equipment.ClientObjectID || req.WarehouseID != equipment.WarehouseID) {
-		return nil, fmt.Errorf("cannot change equipment placement while attached to transport")
-	}
-
-	// Check if number already exists (if being changed)
-	if req.Number != nil && (equipment.Number == nil || *req.Number != *equipment.Number) {
-		exists, err := s.equipmentRepo.ExistsByNumber(ctx, *req.Number, &id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check equipment number existence: %w", err)
-		}
-		if exists {
-			return nil, fmt.Errorf("equipment with number '%s' already exists", *req.Number)
-		}
+	// Validate update request
+	if err := s.validateUpdateRequest(ctx, id, req, equipment); err != nil {
+		return nil, err
 	}
 
 	// Update equipment
 	equipment.UpdateFromRequest(req)
+
+	// Validate placement if specified
+	if err := s.validatePlacementUpdate(req); err != nil {
+		return nil, err
+	}
+
 	equipment.UpdatedAt = time.Now()
 
 	if err := s.equipmentRepo.Update(ctx, equipment); err != nil {
@@ -139,6 +127,65 @@ func (s *equipmentService) Update(ctx context.Context, id uuid.UUID, req models.
 	// Return response
 	response := equipment.ToResponse()
 	return &response, nil
+}
+
+// validateUpdateRequest validates the update request
+//
+//nolint:gocritic // hugeParam: Interface requires request by value
+func (s *equipmentService) validateUpdateRequest(
+	ctx context.Context,
+	id uuid.UUID,
+	req models.UpdateEquipmentRequest,
+	equipment *models.Equipment,
+) error {
+	// Check if equipment is attached to transport
+	isAttached, err := s.equipmentRepo.IsAttachedToTransport(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to check transport attachment: %w", err)
+	}
+
+	// If placement is being changed and equipment is attached to transport, reject
+	if isAttached && s.isPlacementChanging(req, equipment) {
+		return fmt.Errorf("cannot change equipment placement while attached to transport")
+	}
+
+	// Check if number already exists (if being changed)
+	if req.Number != nil && (equipment.Number == nil || *req.Number != *equipment.Number) {
+		exists, err := s.equipmentRepo.ExistsByNumber(ctx, *req.Number, &id)
+		if err != nil {
+			return fmt.Errorf("failed to check equipment number existence: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("equipment with number '%s' already exists", *req.Number)
+		}
+	}
+
+	return nil
+}
+
+// isPlacementChanging checks if the placement is being changed
+//
+//nolint:gocritic // hugeParam: Interface requires request by value
+func (s *equipmentService) isPlacementChanging(req models.UpdateEquipmentRequest, equipment *models.Equipment) bool {
+	return req.ClientObjectID != equipment.ClientObjectID ||
+		req.WarehouseID != equipment.WarehouseID ||
+		req.TransportID != equipment.TransportID
+}
+
+// validatePlacementUpdate validates placement update if specified
+//
+//nolint:gocritic // hugeParam: Interface requires request by value
+func (s *equipmentService) validatePlacementUpdate(req models.UpdateEquipmentRequest) error {
+	// If no placement was specified in the request, keep the existing placement
+	if req.ClientObjectID == nil && req.WarehouseID == nil && req.TransportID == nil {
+		return nil // Keep existing placement - no need to change anything
+	}
+
+	// Placement was specified, ensure it's valid
+	if err := req.ValidatePlacement(); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
+	return nil
 }
 
 // Delete soft-deletes equipment (only if not attached to transport)

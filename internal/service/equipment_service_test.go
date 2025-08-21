@@ -85,18 +85,45 @@ func TestEquipmentService_Create(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name: "successful_creation",
+			name: "successful_creation_with_client_object",
 			req: models.CreateEquipmentRequest{
-				Type:      models.EquipmentTypeBin,
-				VolumeL:   100,
-				Condition: models.EquipmentConditionGood,
-				Number:    stringPtr("BIN001"),
+				Type:           models.EquipmentTypeBin,
+				VolumeL:        100,
+				Condition:      models.EquipmentConditionGood,
+				Number:         stringPtr("BIN001"),
+				ClientObjectID: uuidPtr(uuid.New()),
 			},
 			setupMock: func(repo *MockEquipmentRepository) {
 				repo.On("ExistsByNumber", mock.Anything, "BIN001", (*uuid.UUID)(nil)).Return(false, nil)
 				repo.On("Create", mock.Anything, mock.AnythingOfType("*models.Equipment")).Return(nil)
 			},
 			expectError: false,
+		},
+		{
+			name: "successful_creation_with_transport",
+			req: models.CreateEquipmentRequest{
+				Type:        models.EquipmentTypeBin,
+				VolumeL:     100,
+				Condition:   models.EquipmentConditionGood,
+				Number:      stringPtr("BIN002"),
+				TransportID: uuidPtr(uuid.New()),
+			},
+			setupMock: func(repo *MockEquipmentRepository) {
+				repo.On("ExistsByNumber", mock.Anything, "BIN002", (*uuid.UUID)(nil)).Return(false, nil)
+				repo.On("Create", mock.Anything, mock.AnythingOfType("*models.Equipment")).Return(nil)
+			},
+			expectError: false,
+		},
+		{
+			name: "no_placement_set",
+			req: models.CreateEquipmentRequest{
+				Type:      models.EquipmentTypeContainer,
+				VolumeL:   200,
+				Condition: models.EquipmentConditionGood,
+			},
+			setupMock:     func(repo *MockEquipmentRepository) {},
+			expectError:   true,
+			expectedError: "validation failed: equipment must be assigned to exactly one of: transport, client object, or warehouse",
 		},
 		{
 			name: "both_locations_set",
@@ -109,15 +136,16 @@ func TestEquipmentService_Create(t *testing.T) {
 			},
 			setupMock:     func(repo *MockEquipmentRepository) {},
 			expectError:   true,
-			expectedError: "validation failed: equipment cannot be placed at both client object and warehouse simultaneously",
+			expectedError: "validation failed: equipment must be assigned to exactly one of: transport, client object, or warehouse",
 		},
 		{
 			name: "number_already_exists",
 			req: models.CreateEquipmentRequest{
-				Type:      models.EquipmentTypeBin,
-				VolumeL:   100,
-				Condition: models.EquipmentConditionGood,
-				Number:    stringPtr("BIN001"),
+				Type:           models.EquipmentTypeBin,
+				VolumeL:        100,
+				Condition:      models.EquipmentConditionGood,
+				Number:         stringPtr("BIN001"),
+				ClientObjectID: uuidPtr(uuid.New()),
 			},
 			setupMock: func(repo *MockEquipmentRepository) {
 				repo.On("ExistsByNumber", mock.Anything, "BIN001", (*uuid.UUID)(nil)).Return(true, nil)
@@ -196,9 +224,12 @@ func TestEquipmentService_Update(t *testing.T) {
 				ClientObjectID: uuidPtr(uuid.New()),
 				WarehouseID:    uuidPtr(uuid.New()),
 			},
-			setupMock:     func(repo *MockEquipmentRepository) {},
+			setupMock: func(repo *MockEquipmentRepository) {
+				repo.On("GetByID", mock.Anything, equipmentID, false).Return(existingEquipment, nil)
+				repo.On("IsAttachedToTransport", mock.Anything, equipmentID).Return(false, nil)
+			},
 			expectError:   true,
-			expectedError: "validation failed: equipment cannot be placed at both client object and warehouse simultaneously",
+			expectedError: "validation failed: equipment must be assigned to exactly one of: transport, client object, or warehouse",
 		},
 		{
 			name: "equipment_not_found",
