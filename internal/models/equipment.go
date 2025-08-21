@@ -78,9 +78,9 @@ type EquipmentResponse struct {
 	VolumeL        int                `json:"volumeL"`
 	Condition      EquipmentCondition `json:"condition"`
 	Photo          *string            `json:"photo,omitempty"`
-	ClientObjectID *uuid.UUID         `json:"clientObjectId,omitempty"`
-	WarehouseID    *uuid.UUID         `json:"warehouseId,omitempty"`
-	TransportID    *uuid.UUID         `json:"transportId,omitempty"`
+	ClientObjectID *uuid.UUID         `json:"clientObjectId"`
+	WarehouseID    *uuid.UUID         `json:"warehouseId"`
+	TransportID    *uuid.UUID         `json:"transportId"`
 	CreatedAt      time.Time          `json:"createdAt"`
 	UpdatedAt      time.Time          `json:"updatedAt"`
 	DeletedAt      *time.Time         `json:"deletedAt,omitempty"`
