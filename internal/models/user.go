@@ -25,8 +25,8 @@ type User struct {
 	Email        string    `json:"email"`
 	PasswordHash string    `json:"-"` // Never expose password hash in JSON
 	Role         UserRole  `json:"role"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 // CreateUserRequest represents a request to create a new user

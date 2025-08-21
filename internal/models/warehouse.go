@@ -12,9 +12,9 @@ type Warehouse struct {
 	Name      string     `json:"name" db:"name"`
 	Address   *string    `json:"address,omitempty" db:"address"`
 	Notes     *string    `json:"notes,omitempty" db:"notes"`
-	CreatedAt time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
+	CreatedAt time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt time.Time  `json:"updatedAt" db:"updated_at"`
+	DeletedAt *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
 }
 
 // CreateWarehouseRequest represents the request to create a new warehouse
@@ -52,9 +52,9 @@ type WarehouseResponse struct {
 	Name      string     `json:"name"`
 	Address   *string    `json:"address,omitempty"`
 	Notes     *string    `json:"notes,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+	DeletedAt *time.Time `json:"deletedAt,omitempty"`
 }
 
 // ToResponse converts a Warehouse model to WarehouseResponse

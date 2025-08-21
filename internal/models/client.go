@@ -9,7 +9,7 @@ import (
 // CreateClientRequest represents the request to create a new client
 type CreateClientRequest struct {
 	Name  string  `json:"name" validate:"required,min=1,max=255"`
-	TaxID *string `json:"tax_id,omitempty" validate:"omitempty,max=100"`
+	TaxID *string `json:"taxId,omitempty" validate:"omitempty,max=100"`
 	Email *string `json:"email,omitempty" validate:"omitempty,email,max=255"`
 	Phone *string `json:"phone,omitempty" validate:"omitempty,max=20"`
 	Notes *string `json:"notes,omitempty" validate:"omitempty,max=1000"`
@@ -18,7 +18,7 @@ type CreateClientRequest struct {
 // UpdateClientRequest represents the request to update an existing client
 type UpdateClientRequest struct {
 	Name  string  `json:"name" validate:"required,min=1,max=255"`
-	TaxID *string `json:"tax_id,omitempty" validate:"omitempty,max=100"`
+	TaxID *string `json:"taxId,omitempty" validate:"omitempty,max=100"`
 	Email *string `json:"email,omitempty" validate:"omitempty,email,max=255"`
 	Phone *string `json:"phone,omitempty" validate:"omitempty,max=20"`
 	Notes *string `json:"notes,omitempty" validate:"omitempty,max=1000"`
@@ -44,13 +44,13 @@ type ClientListResponse struct {
 type ClientResponse struct {
 	ID        uuid.UUID  `json:"id"`
 	Name      string     `json:"name"`
-	TaxID     *string    `json:"tax_id,omitempty"`
+	TaxID     *string    `json:"taxId,omitempty"`
 	Email     *string    `json:"email,omitempty"`
 	Phone     *string    `json:"phone,omitempty"`
 	Notes     *string    `json:"notes,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+	DeletedAt *time.Time `json:"deletedAt,omitempty"`
 }
 
 // ToResponse converts a Client model to ClientResponse

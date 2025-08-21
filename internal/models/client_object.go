@@ -10,8 +10,8 @@ import (
 type CreateClientObjectRequest struct {
 	Name    string   `json:"name" validate:"required,min=1,max=255"`
 	Address string   `json:"address" validate:"required,min=1,max=500"`
-	GeoLat  *float64 `json:"geo_lat,omitempty" validate:"omitempty,min=-90,max=90"`
-	GeoLng  *float64 `json:"geo_lng,omitempty" validate:"omitempty,min=-180,max=180"`
+	GeoLat  *float64 `json:"geoLat,omitempty" validate:"omitempty,min=-90,max=90"`
+	GeoLng  *float64 `json:"geoLng,omitempty" validate:"omitempty,min=-180,max=180"`
 	Notes   *string  `json:"notes,omitempty" validate:"omitempty,max=1000"`
 }
 
@@ -19,8 +19,8 @@ type CreateClientObjectRequest struct {
 type UpdateClientObjectRequest struct {
 	Name    string   `json:"name" validate:"required,min=1,max=255"`
 	Address string   `json:"address" validate:"required,min=1,max=500"`
-	GeoLat  *float64 `json:"geo_lat,omitempty" validate:"omitempty,min=-90,max=90"`
-	GeoLng  *float64 `json:"geo_lng,omitempty" validate:"omitempty,min=-180,max=180"`
+	GeoLat  *float64 `json:"geoLat,omitempty" validate:"omitempty,min=-90,max=90"`
+	GeoLng  *float64 `json:"geoLng,omitempty" validate:"omitempty,min=-180,max=180"`
 	Notes   *string  `json:"notes,omitempty" validate:"omitempty,max=1000"`
 }
 
@@ -42,23 +42,23 @@ type ClientObjectListResponse struct {
 // ClientObjectResponse represents the response for a client object
 type ClientObjectResponse struct {
 	ID        uuid.UUID  `json:"id"`
-	ClientID  uuid.UUID  `json:"client_id"`
+	ClientID  uuid.UUID  `json:"clientId"`
 	Name      string     `json:"name"`
 	Address   string     `json:"address"`
-	GeoLat    *float64   `json:"geo_lat,omitempty"`
-	GeoLng    *float64   `json:"geo_lng,omitempty"`
+	GeoLat    *float64   `json:"geoLat,omitempty"`
+	GeoLng    *float64   `json:"geoLng,omitempty"`
 	Notes     *string    `json:"notes,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+	DeletedAt *time.Time `json:"deletedAt,omitempty"`
 }
 
 // DeleteConflicts provides detailed information about what prevents deletion
 type DeleteConflicts struct {
-	HasActiveOrders    bool        `json:"has_active_orders"`
-	HasActiveEquipment bool        `json:"has_active_equipment"`
-	ActiveOrderIDs     []uuid.UUID `json:"active_order_ids,omitempty"`
-	ActiveEquipmentIDs []uuid.UUID `json:"active_equipment_ids,omitempty"`
+	HasActiveOrders    bool        `json:"hasActiveOrders"`
+	HasActiveEquipment bool        `json:"hasActiveEquipment"`
+	ActiveOrderIDs     []uuid.UUID `json:"activeOrderIds,omitempty"`
+	ActiveEquipmentIDs []uuid.UUID `json:"activeEquipmentIds,omitempty"`
 	Message            string      `json:"message"`
 }
 

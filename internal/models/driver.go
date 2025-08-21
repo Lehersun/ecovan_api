@@ -19,19 +19,19 @@ const (
 
 // CreateDriverRequest represents the request to create a new driver
 type CreateDriverRequest struct {
-	FullName     string             `json:"full_name" validate:"required,min=2,max=100"`
+	FullName     string             `json:"fullName" validate:"required,min=2,max=100"`
 	Phone        *string            `json:"phone,omitempty" validate:"omitempty,max=20"`
-	LicenseNo    string             `json:"license_no" validate:"required,min=5,max=20"`
-	LicenseClass DriverLicenseClass `json:"license_class" validate:"required,oneof=A B C D E"`
+	LicenseNo    string             `json:"licenseNo" validate:"required,min=5,max=20"`
+	LicenseClass DriverLicenseClass `json:"licenseClass" validate:"required,oneof=A B C D E"`
 	Photo        *string            `json:"photo,omitempty" validate:"omitempty,max=500"`
 }
 
 // UpdateDriverRequest represents the request to update an existing driver
 type UpdateDriverRequest struct {
-	FullName     *string             `json:"full_name,omitempty" validate:"omitempty,min=2,max=100"`
+	FullName     *string             `json:"fullName,omitempty" validate:"omitempty,min=2,max=100"`
 	Phone        *string             `json:"phone,omitempty" validate:"omitempty,max=20"`
-	LicenseNo    *string             `json:"license_no,omitempty" validate:"omitempty,min=5,max=20"`
-	LicenseClass *DriverLicenseClass `json:"license_class,omitempty" validate:"omitempty,oneof=A B C D E"`
+	LicenseNo    *string             `json:"licenseNo,omitempty" validate:"omitempty,min=5,max=20"`
+	LicenseClass *DriverLicenseClass `json:"licenseClass,omitempty" validate:"omitempty,oneof=A B C D E"`
 	Photo        *string             `json:"photo,omitempty" validate:"omitempty,max=500"`
 }
 
@@ -39,9 +39,9 @@ type UpdateDriverRequest struct {
 type DriverListRequest struct {
 	Page           int     `json:"page" validate:"required,min=1"`
 	PageSize       int     `json:"pageSize" validate:"required,min=1,max=100"`
-	LicenseClass   *string `json:"license_class,omitempty"`
+	LicenseClass   *string `json:"licenseClass,omitempty"`
 	Q              *string `json:"q,omitempty"` // Search query for name or license
-	IncludeDeleted bool    `json:"include_deleted"`
+	IncludeDeleted bool    `json:"includeDeleted"`
 }
 
 // DriverListResponse represents the paginated response for driver listing
@@ -55,14 +55,14 @@ type DriverListResponse struct {
 // DriverResponse represents the response for a single driver
 type DriverResponse struct {
 	ID           uuid.UUID  `json:"id"`
-	FullName     string     `json:"full_name"`
+	FullName     string     `json:"fullName"`
 	Phone        *string    `json:"phone,omitempty"`
-	LicenseNo    string     `json:"license_no"`
-	LicenseClass string     `json:"license_class"`
+	LicenseNo    string     `json:"licenseNo"`
+	LicenseClass string     `json:"licenseClass"`
 	Photo        *string    `json:"photo,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+	DeletedAt    *time.Time `json:"deletedAt,omitempty"`
 }
 
 // ToResponse converts a Driver model to DriverResponse

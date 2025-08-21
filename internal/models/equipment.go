@@ -31,22 +31,22 @@ var ErrInvalidPlacement = fmt.Errorf("equipment cannot be placed at both client 
 type CreateEquipmentRequest struct {
 	Number         *string            `json:"number,omitempty" validate:"omitempty,max=100"`
 	Type           EquipmentType      `json:"type" validate:"required,oneof=BIN CONTAINER"`
-	VolumeL        int                `json:"volume_l" validate:"required,gt=0"`
+	VolumeL        int                `json:"volumeL" validate:"required,gt=0"`
 	Condition      EquipmentCondition `json:"condition" validate:"required,oneof=GOOD DAMAGED OUT_OF_SERVICE"`
 	Photo          *string            `json:"photo,omitempty" validate:"omitempty,max=500"`
-	ClientObjectID *uuid.UUID         `json:"client_object_id,omitempty"`
-	WarehouseID    *uuid.UUID         `json:"warehouse_id,omitempty"`
+	ClientObjectID *uuid.UUID         `json:"clientObjectId"`
+	WarehouseID    *uuid.UUID         `json:"warehouseId"`
 }
 
 // UpdateEquipmentRequest represents the request to update existing equipment
 type UpdateEquipmentRequest struct {
 	Number         *string            `json:"number,omitempty" validate:"omitempty,max=100"`
 	Type           EquipmentType      `json:"type" validate:"required,oneof=BIN CONTAINER"`
-	VolumeL        int                `json:"volume_l" validate:"required,gt=0"`
+	VolumeL        int                `json:"volumeL" validate:"required,gt=0"`
 	Condition      EquipmentCondition `json:"condition" validate:"required,oneof=GOOD DAMAGED OUT_OF_SERVICE"`
 	Photo          *string            `json:"photo,omitempty" validate:"omitempty,max=500"`
-	ClientObjectID *uuid.UUID         `json:"client_object_id,omitempty"`
-	WarehouseID    *uuid.UUID         `json:"warehouse_id,omitempty"`
+	ClientObjectID *uuid.UUID         `json:"clientObjectId"`
+	WarehouseID    *uuid.UUID         `json:"warehouseId"`
 }
 
 // EquipmentListRequest represents the request to list equipment with filtering and pagination
@@ -54,8 +54,8 @@ type EquipmentListRequest struct {
 	Page           int            `json:"page" validate:"min=1"`
 	PageSize       int            `json:"pageSize" validate:"min=1,max=100"`
 	Type           *EquipmentType `json:"type,omitempty"`
-	ClientObjectID *uuid.UUID     `json:"client_object_id,omitempty"`
-	WarehouseID    *uuid.UUID     `json:"warehouse_id,omitempty"`
+	ClientObjectID *uuid.UUID     `json:"clientObjectId,omitempty"`
+	WarehouseID    *uuid.UUID     `json:"warehouseId,omitempty"`
 	IncludeDeleted bool           `json:"includeDeleted"`
 }
 
@@ -72,14 +72,14 @@ type EquipmentResponse struct {
 	ID             uuid.UUID          `json:"id"`
 	Number         *string            `json:"number,omitempty"`
 	Type           EquipmentType      `json:"type"`
-	VolumeL        int                `json:"volume_l"`
+	VolumeL        int                `json:"volumeL"`
 	Condition      EquipmentCondition `json:"condition"`
 	Photo          *string            `json:"photo,omitempty"`
-	ClientObjectID *uuid.UUID         `json:"client_object_id,omitempty"`
-	WarehouseID    *uuid.UUID         `json:"warehouse_id,omitempty"`
-	CreatedAt      time.Time          `json:"created_at"`
-	UpdatedAt      time.Time          `json:"updated_at"`
-	DeletedAt      *time.Time         `json:"deleted_at,omitempty"`
+	ClientObjectID *uuid.UUID         `json:"clientObjectId,omitempty"`
+	WarehouseID    *uuid.UUID         `json:"warehouseId,omitempty"`
+	CreatedAt      time.Time          `json:"createdAt"`
+	UpdatedAt      time.Time          `json:"updatedAt"`
+	DeletedAt      *time.Time         `json:"deletedAt,omitempty"`
 }
 
 // ToResponse converts an Equipment model to EquipmentResponse
