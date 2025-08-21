@@ -167,7 +167,7 @@ func (s *equipmentService) Delete(ctx context.Context, id uuid.UUID) error {
 
 	// Soft delete equipment
 	if err := s.equipmentRepo.SoftDelete(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete equipment: %w", err)
+		return fmt.Errorf("failed to soft delete equipment: %w", err)
 	}
 
 	return nil

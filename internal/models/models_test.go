@@ -449,16 +449,16 @@ func TestTransport_CapacityValidation(t *testing.T) {
 
 func TestDriver_RequiredFields(t *testing.T) {
 	driver := Driver{
-		ID:           uuid.New(),
-		FullName:     "John Doe",
-		Phone:        stringPtr("+1234567890"),
-		LicenseNo:    "DL123456",
-		LicenseClass: "B",
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:             uuid.New(),
+		FullName:       "John Doe",
+		Phone:          stringPtr("+1234567890"),
+		LicenseNo:      stringPtr("DL123456"),
+		LicenseClasses: []string{"B", "C"},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 
-	if driver.FullName == "" || driver.LicenseNo == "" || driver.LicenseClass == "" {
-		t.Errorf("Driver should have all required fields filled")
+	if driver.FullName == "" {
+		t.Errorf("Driver should have FullName field filled")
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"eco-van-api/internal/models"
 	"eco-van-api/internal/port"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -28,7 +29,7 @@ func NewDriverRepository(pool *pgxpool.Pool) port.DriverRepository {
 // Create creates a new driver
 func (r *driverRepository) Create(ctx context.Context, driver *models.Driver) error {
 	query := `
-		INSERT INTO drivers (id, full_name, phone, license_no, license_class, photo, created_at, updated_at)
+		INSERT INTO drivers (id, full_name, phone, license_no, license_classes, photo, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
@@ -37,9 +38,19 @@ func (r *driverRepository) Create(ctx context.Context, driver *models.Driver) er
 	driver.CreatedAt = now
 	driver.UpdatedAt = now
 
+	// Convert license classes to JSON
+	var licenseClassesJSON interface{}
+	if len(driver.LicenseClasses) > 0 {
+		licenseClassesBytes, err := json.Marshal(driver.LicenseClasses)
+		if err != nil {
+			return fmt.Errorf("failed to marshal license classes: %w", err)
+		}
+		licenseClassesJSON = string(licenseClassesBytes)
+	}
+
 	_, err := r.pool.Exec(ctx, query,
 		driver.ID, driver.FullName, driver.Phone, driver.LicenseNo,
-		driver.LicenseClass, driver.Photo, driver.CreatedAt, driver.UpdatedAt,
+		licenseClassesJSON, driver.Photo, driver.CreatedAt, driver.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create driver: %w", err)
@@ -52,7 +63,7 @@ func (r *driverRepository) Create(ctx context.Context, driver *models.Driver) er
 //nolint:dupl // Similar pattern across repositories but with different models and fields
 func (r *driverRepository) GetByID(ctx context.Context, id uuid.UUID, includeDeleted bool) (*models.Driver, error) {
 	query := `
-		SELECT id, full_name, phone, license_no, license_class, photo, created_at, updated_at, deleted_at
+		SELECT id, full_name, phone, license_no, license_classes, photo, created_at, updated_at, deleted_at
 		FROM drivers WHERE id = $1
 	`
 	if !includeDeleted {
@@ -60,9 +71,10 @@ func (r *driverRepository) GetByID(ctx context.Context, id uuid.UUID, includeDel
 	}
 
 	var driver models.Driver
+	var licenseClassesJSON []byte
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&driver.ID, &driver.FullName, &driver.Phone, &driver.LicenseNo,
-		&driver.LicenseClass, &driver.Photo, &driver.CreatedAt, &driver.UpdatedAt, &driver.DeletedAt,
+		&licenseClassesJSON, &driver.Photo, &driver.CreatedAt, &driver.UpdatedAt, &driver.DeletedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -70,6 +82,14 @@ func (r *driverRepository) GetByID(ctx context.Context, id uuid.UUID, includeDel
 		}
 		return nil, fmt.Errorf("failed to get driver: %w", err)
 	}
+
+	// Parse license classes JSON
+	if licenseClassesJSON != nil {
+		if err := json.Unmarshal(licenseClassesJSON, &driver.LicenseClasses); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal license classes: %w", err)
+		}
+	}
+
 	return &driver, nil
 }
 
@@ -88,14 +108,14 @@ func (r *driverRepository) List(ctx context.Context, req models.DriverListReques
 
 	// Add license class filter
 	if req.LicenseClass != nil {
-		whereClauses = append(whereClauses, fmt.Sprintf("license_class = $%d", argIndex))
+		whereClauses = append(whereClauses, fmt.Sprintf("license_classes ? $%d", argIndex))
 		args = append(args, *req.LicenseClass)
 		argIndex++
 	}
 
 	// Add search query filter
 	if req.Q != nil && *req.Q != "" {
-		searchQuery := fmt.Sprintf("(full_name ILIKE $%d OR license_no ILIKE $%d)", argIndex, argIndex)
+		searchQuery := fmt.Sprintf("(full_name ILIKE $%d OR (license_no IS NOT NULL AND license_no ILIKE $%d))", argIndex, argIndex)
 		whereClauses = append(whereClauses, searchQuery)
 		args = append(args, "%"+*req.Q+"%")
 		argIndex++
@@ -112,7 +132,7 @@ func (r *driverRepository) List(ctx context.Context, req models.DriverListReques
 
 	// Build pagination query
 	query := fmt.Sprintf(`
-		SELECT id, full_name, phone, license_no, license_class, photo, created_at, updated_at, deleted_at
+		SELECT id, full_name, phone, license_no, license_classes, photo, created_at, updated_at, deleted_at
 		%s
 		%s
 		ORDER BY created_at DESC
@@ -132,13 +152,9 @@ func (r *driverRepository) List(ctx context.Context, req models.DriverListReques
 
 	items := make([]models.DriverResponse, 0)
 	for rows.Next() {
-		var driver models.Driver
-		err := rows.Scan(
-			&driver.ID, &driver.FullName, &driver.Phone, &driver.LicenseNo,
-			&driver.LicenseClass, &driver.Photo, &driver.CreatedAt, &driver.UpdatedAt, &driver.DeletedAt,
-		)
+		driver, err := r.scanDriverRow(rows)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan driver: %w", err)
+			return nil, err
 		}
 		items = append(items, driver.ToResponse())
 	}
@@ -159,14 +175,25 @@ func (r *driverRepository) List(ctx context.Context, req models.DriverListReques
 func (r *driverRepository) Update(ctx context.Context, driver *models.Driver) error {
 	query := `
 		UPDATE drivers
-		SET full_name = $1, phone = $2, license_no = $3, license_class = $4, photo = $5, updated_at = $6
+		SET full_name = $1, phone = $2, license_no = $3, license_classes = $4, photo = $5, updated_at = $6
 		WHERE id = $7
 	`
 
 	driver.UpdatedAt = time.Now()
+
+	// Convert license classes to JSON
+	var licenseClassesJSON interface{}
+	if len(driver.LicenseClasses) > 0 {
+		licenseClassesBytes, err := json.Marshal(driver.LicenseClasses)
+		if err != nil {
+			return fmt.Errorf("failed to marshal license classes: %w", err)
+		}
+		licenseClassesJSON = string(licenseClassesBytes)
+	}
+
 	_, err := r.pool.Exec(ctx, query,
 		driver.FullName, driver.Phone, driver.LicenseNo,
-		driver.LicenseClass, driver.Photo, driver.UpdatedAt, driver.ID,
+		licenseClassesJSON, driver.Photo, driver.UpdatedAt, driver.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update driver: %w", err)
@@ -224,14 +251,14 @@ func (r *driverRepository) ListAvailable(ctx context.Context, req models.DriverL
 
 	// Add license class filter
 	if req.LicenseClass != nil {
-		whereClauses = append(whereClauses, fmt.Sprintf("d.license_class = $%d", argIndex))
+		whereClauses = append(whereClauses, fmt.Sprintf("d.license_classes ? $%d", argIndex))
 		args = append(args, *req.LicenseClass)
 		argIndex++
 	}
 
 	// Add search query filter
 	if req.Q != nil && *req.Q != "" {
-		searchQuery := fmt.Sprintf("(d.full_name ILIKE $%d OR d.license_no ILIKE $%d)", argIndex, argIndex)
+		searchQuery := fmt.Sprintf("(d.full_name ILIKE $%d OR (d.license_no IS NOT NULL AND d.license_no ILIKE $%d))", argIndex, argIndex)
 		whereClauses = append(whereClauses, searchQuery)
 		args = append(args, "%"+*req.Q+"%")
 		argIndex++
@@ -251,7 +278,7 @@ func (r *driverRepository) ListAvailable(ctx context.Context, req models.DriverL
 
 	// Build pagination query
 	query := fmt.Sprintf(`
-		SELECT d.id, d.full_name, d.phone, d.license_no, d.license_class, d.photo, d.created_at, d.updated_at, d.deleted_at
+		SELECT d.id, d.full_name, d.phone, d.license_no, d.license_classes, d.photo, d.created_at, d.updated_at, d.deleted_at
 		%s
 		ORDER BY d.full_name
 		LIMIT $%d OFFSET $%d
@@ -270,13 +297,9 @@ func (r *driverRepository) ListAvailable(ctx context.Context, req models.DriverL
 
 	items := make([]models.DriverResponse, 0)
 	for rows.Next() {
-		var driver models.Driver
-		err := rows.Scan(
-			&driver.ID, &driver.FullName, &driver.Phone, &driver.LicenseNo,
-			&driver.LicenseClass, &driver.Photo, &driver.CreatedAt, &driver.UpdatedAt, &driver.DeletedAt,
-		)
+		driver, err := r.scanDriverRow(rows)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan driver: %w", err)
+			return nil, err
 		}
 		items = append(items, driver.ToResponse())
 	}
@@ -307,4 +330,26 @@ func (r *driverRepository) IsAssignedToTransport(ctx context.Context, driverID u
 		return false, fmt.Errorf("failed to check driver transport assignment: %w", err)
 	}
 	return exists, nil
+}
+
+// scanDriverRow scans a driver row from database and handles license classes JSON unmarshaling
+func (r *driverRepository) scanDriverRow(rows pgx.Rows) (*models.Driver, error) {
+	var driver models.Driver
+	var licenseClassesJSON []byte
+	err := rows.Scan(
+		&driver.ID, &driver.FullName, &driver.Phone, &driver.LicenseNo,
+		&licenseClassesJSON, &driver.Photo, &driver.CreatedAt, &driver.UpdatedAt, &driver.DeletedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan driver: %w", err)
+	}
+
+	// Parse license classes JSON
+	if licenseClassesJSON != nil {
+		if err := json.Unmarshal(licenseClassesJSON, &driver.LicenseClasses); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal license classes: %w", err)
+		}
+	}
+
+	return &driver, nil
 }

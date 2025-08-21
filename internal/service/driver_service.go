@@ -21,13 +21,15 @@ func NewDriverService(driverRepo port.DriverRepository) port.DriverService {
 
 // Create creates a new driver with validation
 func (s *driverService) Create(ctx context.Context, req models.CreateDriverRequest) (*models.DriverResponse, error) {
-	// Check if license number already exists
-	exists, err := s.driverRepo.ExistsByLicenseNo(ctx, req.LicenseNo, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check driver license existence: %w", err)
-	}
-	if exists {
-		return nil, fmt.Errorf("driver with license number '%s' already exists", req.LicenseNo)
+	// Check if license number already exists (only if provided)
+	if req.LicenseNo != nil {
+		exists, err := s.driverRepo.ExistsByLicenseNo(ctx, *req.LicenseNo, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check driver license existence: %w", err)
+		}
+		if exists {
+			return nil, fmt.Errorf("driver with license number '%s' already exists", *req.LicenseNo)
+		}
 	}
 
 	// Create driver
@@ -82,7 +84,7 @@ func (s *driverService) Update(ctx context.Context, id uuid.UUID, req models.Upd
 	}
 
 	// Check if license number already exists (if being changed)
-	if req.LicenseNo != nil && *req.LicenseNo != driver.LicenseNo {
+	if req.LicenseNo != nil && driver.LicenseNo != nil && *req.LicenseNo != *driver.LicenseNo {
 		exists, err := s.driverRepo.ExistsByLicenseNo(ctx, *req.LicenseNo, &id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check driver license existence: %w", err)

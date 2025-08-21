@@ -81,10 +81,10 @@ func TestDriverService_Create(t *testing.T) {
 		{
 			name: "successful_creation",
 			req: models.CreateDriverRequest{
-				FullName:     "John Doe",
-				Phone:        stringPtr("+1234567890"),
-				LicenseNo:    "DL123456789",
-				LicenseClass: models.DriverLicenseClassB,
+				FullName:       "John Doe",
+				Phone:          stringPtr("+1234567890"),
+				LicenseNo:      stringPtr("DL123456789"),
+				LicenseClasses: []models.DriverLicenseClass{models.DriverLicenseClassB, models.DriverLicenseClassC},
 			},
 			setupMock: func(repo *MockDriverRepository) {
 				repo.On("ExistsByLicenseNo", mock.Anything, "DL123456789", (*uuid.UUID)(nil)).Return(false, nil)
@@ -95,10 +95,10 @@ func TestDriverService_Create(t *testing.T) {
 		{
 			name: "license_already_exists",
 			req: models.CreateDriverRequest{
-				FullName:     "Jane Doe",
-				Phone:        stringPtr("+0987654321"),
-				LicenseNo:    "DL987654321",
-				LicenseClass: models.DriverLicenseClassC,
+				FullName:       "Jane Doe",
+				Phone:          stringPtr("+0987654321"),
+				LicenseNo:      stringPtr("DL987654321"),
+				LicenseClasses: []models.DriverLicenseClass{models.DriverLicenseClassC},
 			},
 			setupMock: func(repo *MockDriverRepository) {
 				repo.On("ExistsByLicenseNo", mock.Anything, "DL987654321", (*uuid.UUID)(nil)).Return(true, nil)
@@ -126,7 +126,13 @@ func TestDriverService_Create(t *testing.T) {
 				assert.Equal(t, tt.req.FullName, result.FullName)
 				assert.Equal(t, tt.req.Phone, result.Phone)
 				assert.Equal(t, tt.req.LicenseNo, result.LicenseNo)
-				assert.Equal(t, string(tt.req.LicenseClass), result.LicenseClass)
+				if len(tt.req.LicenseClasses) > 0 {
+					expectedClasses := make([]string, len(tt.req.LicenseClasses))
+					for i, class := range tt.req.LicenseClasses {
+						expectedClasses[i] = string(class)
+					}
+					assert.Equal(t, expectedClasses, result.LicenseClasses)
+				}
 			}
 
 			mockRepo.AssertExpectations(t)
@@ -152,11 +158,11 @@ func TestDriverService_Update(t *testing.T) {
 			},
 			setupMock: func(repo *MockDriverRepository) {
 				existingDriver := &models.Driver{
-					ID:           uuid.New(),
-					FullName:     "John Doe",
-					Phone:        stringPtr("+1234567890"),
-					LicenseNo:    "DL123456789",
-					LicenseClass: "B",
+					ID:             uuid.New(),
+					FullName:       "John Doe",
+					Phone:          stringPtr("+1234567890"),
+					LicenseNo:      stringPtr("DL123456789"),
+					LicenseClasses: []string{"B"},
 				}
 				repo.On("GetByID", mock.Anything, mock.Anything, false).Return(existingDriver, nil)
 				repo.On("Update", mock.Anything, mock.AnythingOfType("*models.Driver")).Return(nil)
@@ -183,11 +189,11 @@ func TestDriverService_Update(t *testing.T) {
 			},
 			setupMock: func(repo *MockDriverRepository) {
 				existingDriver := &models.Driver{
-					ID:           uuid.New(),
-					FullName:     "John Doe",
-					Phone:        stringPtr("+1234567890"),
-					LicenseNo:    "DL123456789",
-					LicenseClass: "B",
+					ID:             uuid.New(),
+					FullName:       "John Doe",
+					Phone:          stringPtr("+1234567890"),
+					LicenseNo:      stringPtr("DL123456789"),
+					LicenseClasses: []string{"B"},
 				}
 				repo.On("GetByID", mock.Anything, mock.Anything, false).Return(existingDriver, nil)
 				repo.On("ExistsByLicenseNo", mock.Anything, "DL999999999", mock.Anything).Return(true, nil)
@@ -281,18 +287,18 @@ func TestDriverService_Restore(t *testing.T) {
 			setupMock: func(repo *MockDriverRepository) {
 				now := time.Now()
 				deletedDriver := &models.Driver{
-					ID:           uuid.New(),
-					FullName:     "John Doe",
-					LicenseNo:    "DL123456789",
-					LicenseClass: "B",
-					DeletedAt:    &now,
+					ID:             uuid.New(),
+					FullName:       "John Doe",
+					LicenseNo:      stringPtr("DL123456789"),
+					LicenseClasses: []string{"B"},
+					DeletedAt:      &now,
 				}
 				restoredDriver := &models.Driver{
-					ID:           deletedDriver.ID,
-					FullName:     "John Doe",
-					LicenseNo:    "DL123456789",
-					LicenseClass: "B",
-					DeletedAt:    nil,
+					ID:             deletedDriver.ID,
+					FullName:       "John Doe",
+					LicenseNo:      stringPtr("DL123456789"),
+					LicenseClasses: []string{"B"},
+					DeletedAt:      nil,
 				}
 				repo.On("GetByID", mock.Anything, mock.Anything, true).Return(deletedDriver, nil)
 				repo.On("Restore", mock.Anything, mock.Anything).Return(nil)

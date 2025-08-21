@@ -66,15 +66,15 @@ type Transport struct {
 
 // Driver represents personnel
 type Driver struct {
-	ID           uuid.UUID  `json:"id" db:"id"`
-	FullName     string     `json:"fullName" db:"full_name"`
-	Phone        *string    `json:"phone,omitempty" db:"phone"`
-	LicenseNo    string     `json:"licenseNo" db:"license_no"`
-	LicenseClass string     `json:"licenseClass" db:"license_class"`
-	Photo        *string    `json:"photo,omitempty" db:"photo"`
-	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
-	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
-	DeletedAt    *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
+	ID             uuid.UUID  `json:"id" db:"id"`
+	FullName       string     `json:"fullName" db:"full_name"`
+	Phone          *string    `json:"phone,omitempty" db:"phone"`
+	LicenseNo      *string    `json:"licenseNo,omitempty" db:"license_no"`
+	LicenseClasses []string   `json:"licenseClasses,omitempty" db:"license_classes"`
+	Photo          *string    `json:"photo,omitempty" db:"photo"`
+	CreatedAt      time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt      time.Time  `json:"updatedAt" db:"updated_at"`
+	DeletedAt      *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
 }
 
 // Order represents waste collection requests

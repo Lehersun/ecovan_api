@@ -121,20 +121,20 @@ CREATE INDEX IF NOT EXISTS idx_equipment_warehouse     ON equipment(warehouse_id
 -- Drivers (no is_available column; availability computed by NOT EXISTS transport link)
 -- =========================================
 CREATE TABLE IF NOT EXISTS drivers (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  full_name     TEXT NOT NULL,
-  phone         TEXT,
-  license_no    TEXT NOT NULL,
-  license_class TEXT NOT NULL,
-  photo         TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at    TIMESTAMPTZ
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name       TEXT NOT NULL,
+  phone           TEXT,
+  license_no      TEXT,
+  license_classes JSON,
+  photo           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at      TIMESTAMPTZ
 );
 
--- License unique among non-deleted
+-- License unique among non-deleted (only if license_no is provided)
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_drivers_license_not_deleted
-  ON drivers(license_no) WHERE deleted_at IS NULL;
+  ON drivers(license_no) WHERE deleted_at IS NULL AND license_no IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_drivers_name    ON drivers(full_name);
 CREATE INDEX IF NOT EXISTS idx_drivers_phone   ON drivers(phone);

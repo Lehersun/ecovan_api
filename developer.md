@@ -278,11 +278,12 @@ Authorization: Bearer <jwt_token>
   "fullName": "John Smith",
   "phone": "+1-555-1001",
   "licenseNo": "DL123456",
-  "licenseClass": "B",
-  "experienceYears": 5
+  "licenseClasses": ["B", "C", "BE"]
 }
 ```
-- **License Classes:** A, B, C, D, E
+- **Required Fields:** fullName
+- **Optional Fields:** phone, licenseNo, licenseClasses, photo
+- **License Classes:** A, A1, B, B1, C, C1, D, D1, BE, B1E, CE, C1E, DE, D1E (multiple categories can be combined)
 - **Response:** 201 Created with driver details
 
 #### GET `/drivers/{id}`

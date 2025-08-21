@@ -252,7 +252,7 @@ func (r *equipmentRepository) IsAttachedToTransport(ctx context.Context, equipme
 	query := `
 		SELECT EXISTS(
 			SELECT 1 FROM transport 
-			WHERE equipment_id = $1 AND deleted_at IS NULL
+			WHERE current_equipment_id = $1 AND deleted_at IS NULL
 		)
 	`
 	var exists bool
