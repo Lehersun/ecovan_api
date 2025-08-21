@@ -38,7 +38,7 @@ type UpdateDriverRequest struct {
 // DriverListRequest represents the request to list drivers with filtering and pagination
 type DriverListRequest struct {
 	Page           int     `json:"page" validate:"required,min=1"`
-	PageSize       int     `json:"page_size" validate:"required,min=1,max=100"`
+	PageSize       int     `json:"pageSize" validate:"required,min=1,max=100"`
 	LicenseClass   *string `json:"license_class,omitempty"`
 	Q              *string `json:"q,omitempty"` // Search query for name or license
 	IncludeDeleted bool    `json:"include_deleted"`
@@ -48,7 +48,7 @@ type DriverListRequest struct {
 type DriverListResponse struct {
 	Items    []DriverResponse `json:"items"`
 	Page     int              `json:"page"`
-	PageSize int              `json:"page_size"`
+	PageSize int              `json:"pageSize"`
 	Total    int64            `json:"total"`
 }
 
