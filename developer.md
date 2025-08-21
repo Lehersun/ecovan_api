@@ -102,7 +102,7 @@ Authorization: Bearer <jwt_token>
   "name": "Acme Corporation",
   "email": "info@acme.com",
   "phone": "+1-555-0101",
-  "tax_id": "TAX123456",
+  "taxId": "TAX123456",
   "notes": "Large manufacturing company"
 }
 ```
@@ -217,7 +217,7 @@ Authorization: Bearer <jwt_token>
 - **Query Parameters:**
   - `page` (int): Page number
   - `pageSize` (int): Items per page
-  - `warehouse_id` (uuid): Filter by warehouse
+  - `warehouseId` (uuid): Filter by warehouse
   - `type` (string): Filter by equipment type
   - `includeDeleted` (bool): Include soft-deleted equipment
 - **Response:** 200 OK with paginated equipment list
@@ -230,9 +230,9 @@ Authorization: Bearer <jwt_token>
 {
   "type": "BIN",
   "number": "BIN001",
-  "volume_l": 100,
+  "volumeL": 100,
   "condition": "GOOD",
-  "warehouse_id": "c2488d47-53eb-491d-89f4-6998d461ee9b"
+  "warehouseId": "c2488d47-53eb-491d-89f4-6998d461ee9b"
 }
 ```
 - **Equipment Types:** BIN, CONTAINER, PALLET
@@ -275,11 +275,11 @@ Authorization: Bearer <jwt_token>
 - **Request Body:**
 ```json
 {
-  "full_name": "John Smith",
+  "fullName": "John Smith",
   "phone": "+1-555-1001",
-  "license_no": "DL123456",
-  "license_class": "B",
-  "experience_years": 5
+  "licenseNo": "DL123456",
+  "licenseClass": "B",
+  "experienceYears": 5
 }
 ```
 - **License Classes:** A, B, C, D, E
@@ -384,7 +384,7 @@ Authorization: Bearer <jwt_token>
   - `page` (int): Page number
   - `pageSize` (int): Items per page
   - `status` (string): Filter by status
-  - `client_id` (uuid): Filter by client
+  - `clientId` (uuid): Filter by client
   - `includeDeleted` (bool): Include soft-deleted orders
 - **Response:** 200 OK with paginated order list
 
