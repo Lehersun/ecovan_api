@@ -240,7 +240,7 @@ func (r *driverRepository) ListAvailable(ctx context.Context, req models.DriverL
 		FROM drivers d
 		WHERE d.deleted_at IS NULL
 		AND NOT EXISTS (
-			SELECT 1 FROM transports t 
+			SELECT 1 FROM transport t 
 			WHERE t.current_driver_id = d.id 
 			AND t.deleted_at IS NULL
 		)
@@ -251,7 +251,7 @@ func (r *driverRepository) ListAvailable(ctx context.Context, req models.DriverL
 
 	// Add license class filter
 	if req.LicenseClass != nil {
-		whereClauses = append(whereClauses, fmt.Sprintf("d.license_classes ? $%d", argIndex))
+		whereClauses = append(whereClauses, fmt.Sprintf("d.license_classes::jsonb ? $%d", argIndex))
 		args = append(args, *req.LicenseClass)
 		argIndex++
 	}
@@ -264,14 +264,17 @@ func (r *driverRepository) ListAvailable(ctx context.Context, req models.DriverL
 		argIndex++
 	}
 
-	// Build WHERE clause
-	whereClause := r.BuildWhereClause(whereClauses)
-	if whereClause != "" {
-		baseQuery += " AND " + whereClause[6:] // Remove "WHERE " prefix
+	// Build WHERE clause for additional filters
+	additionalWhereClause := r.BuildWhereClause(whereClauses)
+
+	// Combine base query with additional filters
+	fullQuery := baseQuery
+	if additionalWhereClause != "" {
+		fullQuery += " AND " + additionalWhereClause[6:] // Remove "WHERE " prefix
 	}
 
 	// Count total
-	total, err := r.CountTotal(ctx, baseQuery, "", args)
+	total, err := r.CountTotal(ctx, fullQuery, "", args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count available drivers: %w", err)
 	}
@@ -282,7 +285,7 @@ func (r *driverRepository) ListAvailable(ctx context.Context, req models.DriverL
 		%s
 		ORDER BY d.full_name
 		LIMIT $%d OFFSET $%d
-	`, baseQuery, argIndex, argIndex+1)
+	`, fullQuery, argIndex, argIndex+1)
 
 	// Calculate pagination
 	limit := req.PageSize
