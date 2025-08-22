@@ -33,7 +33,8 @@ func NewTransportService(
 // Create creates a new transport
 //
 //nolint:dupl // Similar pattern across services but with different business logic
-func (s *TransportService) Create(ctx context.Context, req models.CreateTransportRequest) (*models.TransportResponse, error) {
+func (s *TransportService) Create(ctx context.Context, req *models.CreateTransportRequest) (
+	*models.TransportResponse, error) {
 	// Check if plate number already exists
 	exists, err := s.transportRepo.ExistsByPlateNo(ctx, req.PlateNo, nil)
 	if err != nil {
@@ -41,6 +42,27 @@ func (s *TransportService) Create(ctx context.Context, req models.CreateTranspor
 	}
 	if exists {
 		return nil, fmt.Errorf("transport with plate number %s already exists", req.PlateNo)
+	}
+
+	// If driver ID is provided, validate it exists and is available
+	if req.DriverID != nil {
+		// Check if driver exists and is not deleted
+		driver, err := s.driverRepo.GetByID(ctx, *req.DriverID, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get driver: %w", err)
+		}
+		if driver == nil {
+			return nil, fmt.Errorf("driver not found")
+		}
+
+		// Check if driver is already assigned to another transport
+		isAssigned, err := s.transportRepo.IsDriverAssignedToOtherTransport(ctx, *req.DriverID, uuid.Nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check driver assignment: %w", err)
+		}
+		if isAssigned {
+			return nil, fmt.Errorf("driver is already assigned to another transport")
+		}
 	}
 
 	// Create transport from request
@@ -90,6 +112,33 @@ func (s *TransportService) Update(ctx context.Context, id uuid.UUID, req models.
 		}
 		if exists {
 			return nil, fmt.Errorf("transport with plate number %s already exists", *req.PlateNo)
+		}
+	}
+
+	// Handle driver assignment/unassignment if updating
+	if req.DriverIDExplicitlySet {
+		if req.DriverIDExplicitlyNull {
+			// Explicitly unassigning driver - no validation needed
+			// The driver will be set to nil in UpdateFromRequest
+		} else if req.DriverID != nil {
+			// Assigning a specific driver - validate
+			// Check if driver exists and is not deleted
+			driver, err := s.driverRepo.GetByID(ctx, *req.DriverID, false)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get driver: %w", err)
+			}
+			if driver == nil {
+				return nil, fmt.Errorf("driver not found")
+			}
+
+			// Check if driver is already assigned to another transport
+			isAssigned, err := s.transportRepo.IsDriverAssignedToOtherTransport(ctx, *req.DriverID, id)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check driver assignment: %w", err)
+			}
+			if isAssigned {
+				return nil, fmt.Errorf("driver is already assigned to another transport")
+			}
 		}
 	}
 
@@ -275,6 +324,37 @@ func (s *TransportService) AssignEquipment(ctx context.Context, transportID stri
 	err = s.transportRepo.AssignEquipment(ctx, tID, req.EquipmentID)
 	if err != nil {
 		return fmt.Errorf("failed to assign equipment: %w", err)
+	}
+
+	return nil
+}
+
+// UnassignDriver removes driver assignment from transport
+func (s *TransportService) UnassignDriver(ctx context.Context, transportID string) error {
+	// Parse transport ID
+	tID, err := uuid.Parse(transportID)
+	if err != nil {
+		return fmt.Errorf("invalid transport ID: %w", err)
+	}
+
+	// Check if transport exists and is not deleted
+	transport, err := s.transportRepo.GetByID(ctx, tID, false)
+	if err != nil {
+		return fmt.Errorf("failed to get transport: %w", err)
+	}
+	if transport == nil {
+		return fmt.Errorf("transport not found")
+	}
+
+	// Check if transport has a driver assigned
+	if transport.CurrentDriverID == nil {
+		return fmt.Errorf("transport has no driver assigned")
+	}
+
+	// Unassign driver from transport
+	err = s.transportRepo.UnassignDriver(ctx, tID)
+	if err != nil {
+		return fmt.Errorf("failed to unassign driver: %w", err)
 	}
 
 	return nil

@@ -111,7 +111,7 @@ func (h *transportHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create transport
-	transport, err := h.transportService.Create(r.Context(), req)
+	transport, err := h.transportService.Create(r.Context(), &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			WriteConflict(w, "Transport with this plate number already exists")
@@ -329,6 +329,32 @@ func (h *transportHandler) AssignEquipment(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		WriteInternalError(w, "Failed to assign equipment")
+		return
+	}
+
+	// Return success
+	w.WriteHeader(http.StatusOK)
+}
+
+// UnassignDriver handles DELETE /v1/transport/{id}/drivers
+func (h *transportHandler) UnassignDriver(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	_, err := uuid.Parse(idStr)
+	if err != nil {
+		WriteBadRequest(w, "Invalid transport ID")
+		return
+	}
+
+	// Unassign driver
+	err = h.transportService.UnassignDriver(r.Context(), idStr)
+	if err != nil {
+		// Check for specific error types
+		if strings.Contains(err.Error(), "not found") ||
+			strings.Contains(err.Error(), "no driver assigned") {
+			WriteConflict(w, err.Error())
+			return
+		}
+		WriteInternalError(w, "Failed to unassign driver")
 		return
 	}
 

@@ -10,7 +10,7 @@ import (
 // TransportService defines the interface for transport business logic
 type TransportService interface {
 	// Basic CRUD operations
-	Create(ctx context.Context, req models.CreateTransportRequest) (*models.TransportResponse, error)
+	Create(ctx context.Context, req *models.CreateTransportRequest) (*models.TransportResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*models.TransportResponse, error)
 	Update(ctx context.Context, id uuid.UUID, req models.UpdateTransportRequest) (*models.TransportResponse, error)
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -25,4 +25,7 @@ type TransportService interface {
 
 	// AssignEquipment assigns equipment to transport with validation
 	AssignEquipment(ctx context.Context, transportID string, req models.AssignEquipmentRequest) error
+
+	// UnassignDriver removes driver assignment from transport
+	UnassignDriver(ctx context.Context, transportID string) error
 }

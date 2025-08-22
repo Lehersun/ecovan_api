@@ -31,27 +31,39 @@ func NewTransportRepository(pool *pgxpool.Pool) port.TransportRepository {
 // Create creates a new transport
 func (r *transportRepository) Create(ctx context.Context, transport *models.Transport) error {
 	query := `
-		INSERT INTO transport (id, plate_no, brand, model, capacity_l, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO transport (plate_no, brand, model, capacity_l, current_driver_id, current_equipment_id, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
 	now := time.Now()
-	transport.ID = uuid.New()
 	transport.CreatedAt = now
 	transport.UpdatedAt = now
 
 	_, err := r.pool.Exec(ctx, query,
-		transport.ID,
 		transport.PlateNo,
 		transport.Brand,
 		transport.Model,
 		transport.CapacityL,
+		transport.CurrentDriverID,
+		transport.CurrentEquipmentID,
 		transport.Status,
 		transport.CreatedAt,
 		transport.UpdatedAt,
 	)
 
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to insert transport: %w", err)
+	}
+
+	// Get the generated ID
+	var id uuid.UUID
+	err = r.pool.QueryRow(ctx, "SELECT id FROM transport WHERE plate_no = $1", transport.PlateNo).Scan(&id)
+	if err != nil {
+		return fmt.Errorf("failed to get generated transport ID: %w", err)
+	}
+	transport.ID = id
+
+	return nil
 }
 
 // GetByID retrieves a transport by ID, optionally including soft-deleted
@@ -95,8 +107,10 @@ func (r *transportRepository) GetByID(ctx context.Context, id uuid.UUID, include
 func (r *transportRepository) Update(ctx context.Context, transport *models.Transport) error {
 	query := `
 		UPDATE transport 
-		SET plate_no = $1, brand = $2, model = $3, capacity_l = $4, status = $5, updated_at = $6
-		WHERE id = $7 AND deleted_at IS NULL
+		SET plate_no = $1, brand = $2, model = $3, capacity_l = $4, 
+		    current_driver_id = $5, current_equipment_id = $6, status = $7, 
+		    updated_at = $8
+		WHERE id = $9 AND deleted_at IS NULL
 	`
 
 	transport.UpdatedAt = time.Now()
@@ -105,6 +119,8 @@ func (r *transportRepository) Update(ctx context.Context, transport *models.Tran
 		transport.Brand,
 		transport.Model,
 		transport.CapacityL,
+		transport.CurrentDriverID,
+		transport.CurrentEquipmentID,
 		transport.Status,
 		transport.UpdatedAt,
 		transport.ID,

@@ -407,6 +407,7 @@ func setupRoutes(router chi.Router, telemetry *telemetry.Manager, db *pg.DB, cfg
 				r.Post("/{id}/restore", transportHandler.RestoreItem)
 				r.Put("/{id}/assign-driver", transportHandler.AssignDriver)
 				r.Put("/{id}/assign-equipment", transportHandler.AssignEquipment)
+				r.Delete("/{id}/drivers", transportHandler.UnassignDriver)
 			})
 		})
 
