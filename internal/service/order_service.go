@@ -56,6 +56,21 @@ func (s *orderService) Create(ctx context.Context, req *models.CreateOrderReques
 		return nil, fmt.Errorf("client object does not belong to the specified client")
 	}
 
+	// Validate transport if being assigned
+	if req.TransportID != nil {
+		transport, err := s.transportRepo.GetByID(ctx, *req.TransportID, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get transport: %w", err)
+		}
+		if transport == nil {
+			return nil, fmt.Errorf("transport not found")
+		}
+		// Check if transport is available (has IN_WORK status)
+		if transport.Status != "IN_WORK" {
+			return nil, fmt.Errorf("transport is not available (status: %s)", transport.Status)
+		}
+	}
+
 	// Create order from request
 	order := models.FromOrderCreateRequest(req)
 	order.CreatedBy = createdBy
@@ -108,6 +123,77 @@ func (s *orderService) List(ctx context.Context, req models.OrderListRequest) (*
 	return response, nil
 }
 
+// validateClientUpdate validates client update if provided
+func (s *orderService) validateClientUpdate(ctx context.Context, clientID *uuid.UUID) error {
+	if clientID == nil {
+		return nil
+	}
+
+	client, err := s.clientRepo.GetByID(ctx, *clientID, false)
+	if err != nil {
+		return fmt.Errorf("failed to get client: %w", err)
+	}
+	if client == nil {
+		return fmt.Errorf("client not found")
+	}
+	return nil
+}
+
+// clientObjectValidationParams holds parameters for client object validation
+type clientObjectValidationParams struct {
+	objectID         *uuid.UUID
+	clientID         *uuid.UUID
+	existingClientID uuid.UUID
+}
+
+// validateClientObjectUpdate validates client object update if provided
+func (s *orderService) validateClientObjectUpdate(ctx context.Context, params clientObjectValidationParams) error {
+	if params.objectID == nil {
+		return nil
+	}
+
+	clientObj, err := s.clientObjRepo.GetByID(ctx, *params.objectID, false)
+	if err != nil {
+		return fmt.Errorf("failed to get client object: %w", err)
+	}
+	if clientObj == nil {
+		return fmt.Errorf("client object not found")
+	}
+
+	// If client is also being updated, validate the relationship
+	if params.clientID != nil {
+		if clientObj.ClientID != *params.clientID {
+			return fmt.Errorf("client object does not belong to the specified client")
+		}
+	} else {
+		// Use existing client ID for validation
+		if clientObj.ClientID != params.existingClientID {
+			return fmt.Errorf("client object does not belong to the order's client")
+		}
+	}
+	return nil
+}
+
+// validateTransportUpdate validates transport update if provided
+func (s *orderService) validateTransportUpdate(ctx context.Context, transportID *uuid.UUID) error {
+	if transportID == nil {
+		return nil
+	}
+
+	transport, err := s.transportRepo.GetByID(ctx, *transportID, false)
+	if err != nil {
+		return fmt.Errorf("failed to get transport: %w", err)
+	}
+	if transport == nil {
+		return fmt.Errorf("transport not found")
+	}
+	// Check if transport is available (has IN_WORK status)
+	if transport.Status != "IN_WORK" {
+		return fmt.Errorf("transport is not available (status: %s)", transport.Status)
+	}
+	return nil
+}
+
 // Update updates an existing order with validation
 func (s *orderService) Update(ctx context.Context, id uuid.UUID, req models.UpdateOrderRequest) (*models.OrderResponse, error) {
 	// Get existing order
@@ -120,38 +206,21 @@ func (s *orderService) Update(ctx context.Context, id uuid.UUID, req models.Upda
 		return nil, fmt.Errorf("order not found")
 	}
 
-	// Validate client if being updated
-	if req.ClientID != nil {
-		client, err := s.clientRepo.GetByID(ctx, *req.ClientID, false)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get client: %w", err)
-		}
-		if client == nil {
-			return nil, fmt.Errorf("client not found")
-		}
+	// Validate updates
+	if err := s.validateClientUpdate(ctx, req.ClientID); err != nil {
+		return nil, err
 	}
 
-	// Validate client object if being updated
-	if req.ObjectID != nil {
-		clientObj, err := s.clientObjRepo.GetByID(ctx, *req.ObjectID, false)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get client object: %w", err)
-		}
-		if clientObj == nil {
-			return nil, fmt.Errorf("client object not found")
-		}
+	if err := s.validateClientObjectUpdate(ctx, clientObjectValidationParams{
+		objectID:         req.ObjectID,
+		clientID:         req.ClientID,
+		existingClientID: order.ClientID,
+	}); err != nil {
+		return nil, err
+	}
 
-		// If client is also being updated, validate the relationship
-		if req.ClientID != nil {
-			if clientObj.ClientID != *req.ClientID {
-				return nil, fmt.Errorf("client object does not belong to the specified client")
-			}
-		} else {
-			// Use existing client ID for validation
-			if clientObj.ClientID != order.ClientID {
-				return nil, fmt.Errorf("client object does not belong to the order's client")
-			}
-		}
+	if err := s.validateTransportUpdate(ctx, req.TransportID); err != nil {
+		return nil, err
 	}
 
 	// Update order from request

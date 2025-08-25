@@ -29,9 +29,9 @@ func (r *orderRepository) Create(ctx context.Context, order *models.Order) error
 	query := `
 		INSERT INTO orders (
 			client_id, object_id, scheduled_date, scheduled_window_from, 
-			scheduled_window_to, status, transport_id, notes, created_by, 
+			scheduled_window_to, status, priority, transport_id, notes, created_by, 
 			created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id, created_at, updated_at
 	`
 
@@ -46,6 +46,7 @@ func (r *orderRepository) Create(ctx context.Context, order *models.Order) error
 		order.ScheduledWindowFrom,
 		order.ScheduledWindowTo,
 		order.Status,
+		order.Priority,
 		order.TransportID,
 		order.Notes,
 		order.CreatedBy,
@@ -64,7 +65,7 @@ func (r *orderRepository) Create(ctx context.Context, order *models.Order) error
 func (r *orderRepository) GetByID(ctx context.Context, id uuid.UUID, includeDeleted bool) (*models.Order, error) {
 	query := `
 		SELECT id, client_id, object_id, scheduled_date, scheduled_window_from,
-		       scheduled_window_to, status, transport_id, notes, created_by,
+		       scheduled_window_to, status, priority, transport_id, notes, created_by,
 		       created_at, updated_at, deleted_at
 		FROM orders
 		WHERE id = $1
@@ -83,6 +84,7 @@ func (r *orderRepository) GetByID(ctx context.Context, id uuid.UUID, includeDele
 		&order.ScheduledWindowFrom,
 		&order.ScheduledWindowTo,
 		&order.Status,
+		&order.Priority,
 		&order.TransportID,
 		&order.Notes,
 		&order.CreatedBy,
@@ -107,8 +109,8 @@ func (r *orderRepository) Update(ctx context.Context, order *models.Order) error
 		UPDATE orders
 		SET client_id = $1, object_id = $2, scheduled_date = $3, 
 		    scheduled_window_from = $4, scheduled_window_to = $5, 
-		    status = $6, transport_id = $7, notes = $8, updated_at = $9
-		WHERE id = $10
+		    status = $6, priority = $7, transport_id = $8, notes = $9, updated_at = $10
+		WHERE id = $11
 	`
 
 	order.UpdatedAt = time.Now()
@@ -119,6 +121,7 @@ func (r *orderRepository) Update(ctx context.Context, order *models.Order) error
 		order.ScheduledWindowFrom,
 		order.ScheduledWindowTo,
 		order.Status,
+		order.Priority,
 		order.TransportID,
 		order.Notes,
 		order.UpdatedAt,
@@ -204,6 +207,12 @@ func (r *orderRepository) List(ctx context.Context, req models.OrderListRequest)
 		args = append(args, *req.ObjectID)
 	}
 
+	// Add priority filter
+	if req.Priority != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("priority = $%d", len(args)+1))
+		args = append(args, *req.Priority)
+	}
+
 	// Build WHERE clause
 	whereClause := ""
 	if len(whereClauses) > 0 {
@@ -228,7 +237,7 @@ func (r *orderRepository) List(ctx context.Context, req models.OrderListRequest)
 	offsetParamNum := len(args) + offsetIncrement
 	mainQuery := fmt.Sprintf(`
 		SELECT id, client_id, object_id, scheduled_date, scheduled_window_from,
-		       scheduled_window_to, status, transport_id, notes, created_by,
+		       scheduled_window_to, status, priority, transport_id, notes, created_by,
 		       created_at, updated_at, deleted_at
 		FROM orders
 		%s
@@ -256,6 +265,7 @@ func (r *orderRepository) List(ctx context.Context, req models.OrderListRequest)
 			&order.ScheduledWindowFrom,
 			&order.ScheduledWindowTo,
 			&order.Status,
+			&order.Priority,
 			&order.TransportID,
 			&order.Notes,
 			&order.CreatedBy,

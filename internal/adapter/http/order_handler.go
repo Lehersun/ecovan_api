@@ -34,6 +34,7 @@ func (h *OrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
 	status := r.URL.Query().Get("status")
+	priority := r.URL.Query().Get("priority")
 	date := r.URL.Query().Get("date")
 	clientIDStr := r.URL.Query().Get("clientId")
 	objectIDStr := r.URL.Query().Get("objectId")
@@ -62,6 +63,14 @@ func (h *OrderHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Status = &orderStatus
+	}
+
+	if priority != "" {
+		if !models.IsValidOrderPriority(priority) {
+			WriteValidationError(w, "Invalid priority value")
+			return
+		}
+		req.Priority = &priority
 	}
 
 	if date != "" {

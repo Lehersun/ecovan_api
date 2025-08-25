@@ -78,6 +78,32 @@ type Driver struct {
 	DeletedAt      *time.Time `json:"deletedAt,omitempty" db:"deleted_at"`
 }
 
+// OrderPriority represents the priority level of an order
+type OrderPriority string
+
+const (
+	OrderPriorityLow    OrderPriority = "LOW"
+	OrderPriorityMedium OrderPriority = "MEDIUM"
+	OrderPriorityHigh   OrderPriority = "HIGH"
+)
+
+// ValidOrderPriorities contains all valid order priorities
+var ValidOrderPriorities = []OrderPriority{
+	OrderPriorityLow,
+	OrderPriorityMedium,
+	OrderPriorityHigh,
+}
+
+// IsValidOrderPriority checks if a priority is valid
+func IsValidOrderPriority(priority string) bool {
+	for _, validPriority := range ValidOrderPriorities {
+		if string(validPriority) == priority {
+			return true
+		}
+	}
+	return false
+}
+
 // Order represents waste collection requests
 type Order struct {
 	ID                  uuid.UUID  `json:"id" db:"id"`
@@ -87,7 +113,8 @@ type Order struct {
 	ScheduledWindowFrom *string    `json:"scheduledWindowFrom,omitempty" db:"scheduled_window_from"`
 	ScheduledWindowTo   *string    `json:"scheduledWindowTo,omitempty" db:"scheduled_window_to"`
 	Status              string     `json:"status" db:"status"`
-	TransportID         *uuid.UUID `json:"transportId,omitempty" db:"transport_id"`
+	Priority            string     `json:"priority" db:"priority"`
+	TransportID         *uuid.UUID `json:"transportId" db:"transport_id"`
 	Notes               *string    `json:"notes,omitempty" db:"notes"`
 	CreatedBy           *uuid.UUID `json:"createdBy,omitempty" db:"created_by"`
 	CreatedAt           time.Time  `json:"createdAt" db:"created_at"`
@@ -105,6 +132,7 @@ func (o *Order) ToResponse() OrderResponse {
 		ScheduledWindowFrom: o.ScheduledWindowFrom,
 		ScheduledWindowTo:   o.ScheduledWindowTo,
 		Status:              o.Status,
+		Priority:            o.Priority,
 		TransportID:         o.TransportID,
 		Notes:               o.Notes,
 		CreatedBy:           o.CreatedBy,
@@ -116,6 +144,11 @@ func (o *Order) ToResponse() OrderResponse {
 
 // FromCreateRequest creates a new Order from CreateOrderRequest
 func FromOrderCreateRequest(req *CreateOrderRequest) Order {
+	priority := "MEDIUM" // Default priority
+	if req.Priority != nil {
+		priority = *req.Priority
+	}
+
 	return Order{
 		ClientID:            req.ClientID,
 		ObjectID:            req.ObjectID,
@@ -123,6 +156,8 @@ func FromOrderCreateRequest(req *CreateOrderRequest) Order {
 		ScheduledWindowFrom: req.ScheduledWindowFrom,
 		ScheduledWindowTo:   req.ScheduledWindowTo,
 		Status:              string(OrderStatusDraft), // Default status
+		Priority:            priority,
+		TransportID:         req.TransportID,
 		Notes:               req.Notes,
 	}
 }
@@ -143,6 +178,12 @@ func (o *Order) UpdateFromRequest(req UpdateOrderRequest) {
 	}
 	if req.ScheduledWindowTo != nil {
 		o.ScheduledWindowTo = req.ScheduledWindowTo
+	}
+	if req.Priority != nil {
+		o.Priority = *req.Priority
+	}
+	if req.TransportID != nil {
+		o.TransportID = req.TransportID
 	}
 	if req.Notes != nil {
 		o.Notes = req.Notes
@@ -165,10 +206,10 @@ func (o *Order) CanTransitionTo(newStatus OrderStatus) error {
 		return fmt.Errorf("order in SCHEDULED status can only transition to IN_PROGRESS or CANCELED")
 
 	case string(OrderStatusInProgress):
-		if newStatus == OrderStatusCompleted {
+		if newStatus == OrderStatusCompleted || newStatus == OrderStatusCanceled {
 			return nil
 		}
-		return fmt.Errorf("order in IN_PROGRESS status can only transition to COMPLETED")
+		return fmt.Errorf("order in IN_PROGRESS status can only transition to COMPLETED or CANCELED")
 
 	case string(OrderStatusCompleted):
 		return fmt.Errorf("order in COMPLETED status cannot transition to any other status")
@@ -231,12 +272,14 @@ func IsValidOrderStatus(status string) bool {
 
 // CreateOrderRequest represents the request to create a new order
 type CreateOrderRequest struct {
-	ClientID            uuid.UUID `json:"clientId" validate:"required"`
-	ObjectID            uuid.UUID `json:"objectId" validate:"required"`
-	ScheduledDate       time.Time `json:"scheduledDate" validate:"required"`
-	ScheduledWindowFrom *string   `json:"scheduledWindowFrom,omitempty"`
-	ScheduledWindowTo   *string   `json:"scheduledWindowTo,omitempty"`
-	Notes               *string   `json:"notes,omitempty" validate:"omitempty,max=1000"`
+	ClientID            uuid.UUID  `json:"clientId" validate:"required"`
+	ObjectID            uuid.UUID  `json:"objectId" validate:"required"`
+	ScheduledDate       time.Time  `json:"scheduledDate" validate:"required"`
+	ScheduledWindowFrom *string    `json:"scheduledWindowFrom,omitempty"`
+	ScheduledWindowTo   *string    `json:"scheduledWindowTo,omitempty"`
+	Priority            *string    `json:"priority,omitempty" validate:"omitempty,oneof=LOW MEDIUM HIGH"`
+	TransportID         *uuid.UUID `json:"transportId,omitempty" validate:"omitempty"`
+	Notes               *string    `json:"notes,omitempty" validate:"omitempty,max=1000"`
 }
 
 // UpdateOrderRequest represents the request to update an existing order
@@ -246,6 +289,8 @@ type UpdateOrderRequest struct {
 	ScheduledDate       *time.Time `json:"scheduledDate,omitempty" validate:"omitempty"`
 	ScheduledWindowFrom *string    `json:"scheduledWindowFrom,omitempty"`
 	ScheduledWindowTo   *string    `json:"scheduledWindowTo,omitempty"`
+	Priority            *string    `json:"priority,omitempty" validate:"omitempty,oneof=LOW MEDIUM HIGH"`
+	TransportID         *uuid.UUID `json:"transportId,omitempty" validate:"omitempty"`
 	Notes               *string    `json:"notes,omitempty" validate:"omitempty,max=1000"`
 }
 
@@ -264,6 +309,7 @@ type OrderListRequest struct {
 	Page           int          `json:"page" validate:"min=1"`
 	PageSize       int          `json:"pageSize" validate:"min=1,max=100"`
 	Status         *OrderStatus `json:"status,omitempty"`
+	Priority       *string      `json:"priority,omitempty" validate:"omitempty,oneof=LOW MEDIUM HIGH"`
 	Date           *time.Time   `json:"date,omitempty"`
 	ClientID       *uuid.UUID   `json:"clientId,omitempty"`
 	ObjectID       *uuid.UUID   `json:"objectId,omitempty"`
@@ -287,7 +333,8 @@ type OrderResponse struct {
 	ScheduledWindowFrom *string    `json:"scheduledWindowFrom,omitempty"`
 	ScheduledWindowTo   *string    `json:"scheduledWindowTo,omitempty"`
 	Status              string     `json:"status"`
-	TransportID         *uuid.UUID `json:"transportId,omitempty"`
+	Priority            string     `json:"priority"`
+	TransportID         *uuid.UUID `json:"transportId"`
 	Notes               *string    `json:"notes,omitempty"`
 	CreatedBy           *uuid.UUID `json:"createdBy,omitempty"`
 	CreatedAt           time.Time  `json:"createdAt"`

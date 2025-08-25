@@ -9,6 +9,7 @@ import (
 
 	"eco-van-api/internal/models"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,8 +26,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object using the helper functions with unique names
-		clientID := MakeClient(t, ctx, TestPool, "OrderTest-CreateRetrieve-"+t.Name())
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-CreateRetrieve-"+t.Name())
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest-CreateRetrieve-"+uuid.New().String()[:8])
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-CreateRetrieve-"+uuid.New().String()[:8])
 
 		// Create test order using the repository
 		order := models.Order{
@@ -34,6 +35,7 @@ func TestOrderRepository_Integration(t *testing.T) {
 			ObjectID:      objectID,
 			ScheduledDate: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
 			Status:        "DRAFT",
+			Priority:      "MEDIUM",
 			Notes:         stringPtrOrder("Test order"),
 		}
 
@@ -59,8 +61,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object with unique names
-		clientID := MakeClient(t, ctx, TestPool, "OrderTest-ListOrders-"+t.Name())
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-ListOrders-"+t.Name())
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest-ListOrders-"+uuid.New().String()[:8])
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-ListOrders-"+uuid.New().String()[:8])
 
 		// Create test orders using the repository
 		order1 := models.Order{
@@ -68,6 +70,7 @@ func TestOrderRepository_Integration(t *testing.T) {
 			ObjectID:      objectID,
 			ScheduledDate: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
 			Status:        "DRAFT",
+			Priority:      "MEDIUM",
 			Notes:         stringPtrOrder("First order"),
 		}
 		order2 := models.Order{
@@ -75,6 +78,7 @@ func TestOrderRepository_Integration(t *testing.T) {
 			ObjectID:      objectID,
 			ScheduledDate: time.Date(2024, 1, 16, 0, 0, 0, 0, time.UTC),
 			Status:        "SCHEDULED",
+			Priority:      "HIGH",
 			Notes:         stringPtrOrder("Second order"),
 		}
 
@@ -105,8 +109,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object with unique names
-		clientID := MakeClient(t, ctx, TestPool, "OrderTest-ListFilters-"+t.Name())
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-ListFilters-"+t.Name())
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest-ListFilters-"+uuid.New().String()[:8])
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-ListFilters-"+uuid.New().String()[:8])
 
 		// Create test order using the repository
 		order := models.Order{
@@ -114,6 +118,7 @@ func TestOrderRepository_Integration(t *testing.T) {
 			ObjectID:      objectID,
 			ScheduledDate: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
 			Status:        "DRAFT",
+			Priority:      "LOW",
 		}
 
 		err := orderRepo.Create(ctx, &order)
@@ -141,8 +146,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object with unique names
-		clientID := MakeClient(t, ctx, TestPool, "OrderTest-SoftDelete-"+t.Name())
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-SoftDelete-"+t.Name())
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest-SoftDelete-"+uuid.New().String()[:8])
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-SoftDelete-"+uuid.New().String()[:8])
 
 		// Create test order using the repository
 		order := models.Order{
@@ -150,6 +155,7 @@ func TestOrderRepository_Integration(t *testing.T) {
 			ObjectID:      objectID,
 			ScheduledDate: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
 			Status:        "DRAFT",
+			Priority:      "MEDIUM",
 		}
 
 		err := orderRepo.Create(ctx, &order)
@@ -185,8 +191,8 @@ func TestOrderRepository_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		// Create test client and object with unique names
-		clientID := MakeClient(t, ctx, TestPool, "OrderTest-UpdateOrder-"+t.Name())
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-UpdateOrder-"+t.Name())
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest-UpdateOrder-"+uuid.New().String()[:8])
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "OrderTest-Office-UpdateOrder-"+uuid.New().String()[:8])
 
 		// Create test order
 		order := models.Order{
@@ -194,6 +200,7 @@ func TestOrderRepository_Integration(t *testing.T) {
 			ObjectID:      objectID,
 			ScheduledDate: time.Date(2024, 1, 18, 0, 0, 0, 0, time.UTC),
 			Status:        string(models.OrderStatusDraft),
+			Priority:      "HIGH",
 			Notes:         stringPtrOrder("Order to update"),
 		}
 
@@ -227,8 +234,8 @@ func TestOrderRepository_ExistsByClientAndObject(t *testing.T) {
 	t.Run("No existing order", func(t *testing.T) {
 		ctx := context.Background()
 
-		clientID := MakeClient(t, ctx, TestPool, "OrderTest-NoOrders-"+t.Name())
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "MainOffice-NoOrders-"+t.Name())
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest-NoOrders-"+uuid.New().String()[:8])
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "MainOffice-NoOrders-"+uuid.New().String()[:8])
 
 		exists, err := orderRepo.ExistsByClientAndObject(ctx, clientID, objectID, nil)
 		require.NoError(t, err)
@@ -238,8 +245,8 @@ func TestOrderRepository_ExistsByClientAndObject(t *testing.T) {
 	t.Run("With existing order", func(t *testing.T) {
 		ctx := context.Background()
 
-		clientID := MakeClient(t, ctx, TestPool, "OrderTest-WithOrders-"+t.Name())
-		objectID := MakeClientObject(t, ctx, TestPool, clientID, "MainOffice-WithOrders-"+t.Name())
+		clientID := MakeClient(t, ctx, TestPool, "OrderTest-WithOrders-"+uuid.New().String()[:8])
+		objectID := MakeClientObject(t, ctx, TestPool, clientID, "MainOffice-WithOrders-"+uuid.New().String()[:8])
 
 		// Create test order using the repository
 		order := models.Order{
@@ -247,6 +254,7 @@ func TestOrderRepository_ExistsByClientAndObject(t *testing.T) {
 			ObjectID:      objectID,
 			ScheduledDate: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 			Status:        "DRAFT",
+			Priority:      "MEDIUM",
 		}
 
 		err := orderRepo.Create(ctx, &order)
